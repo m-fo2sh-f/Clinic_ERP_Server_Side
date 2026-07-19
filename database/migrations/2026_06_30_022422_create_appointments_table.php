@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -8,24 +9,26 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('patients', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // معرف المريض UUID ليكون متوافق مع الـ Scalability مستقبلاً
+        Schema::create('appointments', function (Blueprint $table) {
+            $table->uuid('id')->primary();
             $table->string('tenant_id');
-            $table->string('name'); 
-            $table->string('phone'); 
-            $table->integer('age')->nullable();
-            $table->enum('gender', ['male', 'female'])->nullable();
-            $table->text('medical_history')->nullable(); // أمراض مزمنة أو حساسية
+            $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
+            $table->dateTime('appointment_time'); 
+            $table->string('type')->default('pending'); 
+    
+            $table->string('status')->default('Confirmed'); 
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            // لسرعة البحث بالاسم أو التليفون في الـ AutoComplete بالفرونت
-            $table->index(['phone', 'name']); 
+
+            $table->index('appointment_time');
+            
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('patients');
+        Schema::dropIfExists('appointments');
     }
 };

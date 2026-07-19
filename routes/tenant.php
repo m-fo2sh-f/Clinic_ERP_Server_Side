@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
+use App\Http\Controllers\api\v1\AppointmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,11 +20,14 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 */
 
 Route::middleware([
-    'web',
+    'api',
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
-])->group(function () {
-    Route::get('/', function () {
-        return 'This is your multi-tenant application. The id of the current tenant is ' . tenant('id');
-    });
+])->prefix('api/v1')->group(function () {
+
+    
+    Route::get('appointment', [AppointmentController::class, 'index']);
+    Route::post('appointment/create', [AppointmentController::class, 'store']);
+    Route::put('appointment/{id}', [AppointmentController::class, 'update']);
+    Route::delete('appointment/{id}', [AppointmentController::class, 'destroy']);
 });

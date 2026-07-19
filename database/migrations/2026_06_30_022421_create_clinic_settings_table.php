@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('clinic_settings', function (Blueprint $table) {
             $table->id();
             $table->string('tenant_id');
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
             // الاستراتيجية: slots_only, fifo_only, hybrid
             $table->string('queue_strategy')->default('hybrid'); 
             $table->integer('avg_appointment_duration')->default(15); // مدة الكشف بالدقائق

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('live_queues', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('tenant_id');
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
             // لو جاي من حجز مسبق بنربطه بيه، لو Walk-in بيفضل سطر الحجز نال
             $table->foreignUuid('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
