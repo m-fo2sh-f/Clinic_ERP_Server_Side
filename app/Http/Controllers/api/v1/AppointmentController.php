@@ -23,10 +23,11 @@ class AppointmentController extends Controller
     {
 
         $request->validate([
-            "branch_id"=> "required|exists:branches,id"
+            "branch_id"=> "required|exists:branches,id",
+            "date"      => "nullable|date_format:Y-m-d" 
         ]);
 
-        $appointments = $this->appointmentService->getAllAppointmentsForBranch($request->branch_id);
+        $appointments = $this->appointmentService->getAllAppointmentsForBranch($request->branch_id, $request->date);
 
         return response()->json([
             "status"=> "success",
@@ -68,5 +69,15 @@ class AppointmentController extends Controller
             "message" => "Appointment deleted successfully"
         ], 200);
         
+    }
+
+    public function checkIn(string $id){
+        $queueRecord = $this->appointmentService->checkInAppointment($id);
+
+        return response()->json([
+            "status"  => "success",
+            "message" => "تم تأكيد حضور المريض ودخوله صالة الانتظار بنجاح",
+            "data"    => $queueRecord
+        ], 200);
     }
 }

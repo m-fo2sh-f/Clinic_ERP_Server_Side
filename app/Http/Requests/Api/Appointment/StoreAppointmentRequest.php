@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Api\Appointment;
 
+use App\Enums\AppointmentStatus;
+use App\Enums\AppointmentType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -25,8 +28,8 @@ class StoreAppointmentRequest extends FormRequest
         return [
             'appointment_time' => 'required|date_format:Y-m-d H:i:s',
             'branch_id'        => 'required|exists:branches,id',
-            'type'             => 'required|in:check_up,follow_up,consultation',
-            'status'           => 'required|in:checked_in,no_show,canceled,pending',
+            'type'             => ['required', Rule::enum(AppointmentType::class)],
+            'status'           => ['required', Rule::enum(AppointmentStatus::class)],
             'patient_id'       => 'nullable|exists:patients,id',
             'patient'          => 'required_without:patient_id|array',
             'patient.name'     => 'required_without:patient_id|string|max:255',

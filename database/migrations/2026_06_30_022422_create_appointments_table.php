@@ -17,7 +17,7 @@ return new class extends Migration
             $table->dateTime('appointment_time'); 
             $table->string('type')->default('pending'); 
     
-            $table->string('status')->default('Confirmed'); 
+            $table->string('status')->default('confirmed'); 
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();

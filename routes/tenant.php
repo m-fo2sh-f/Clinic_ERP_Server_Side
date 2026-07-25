@@ -5,7 +5,9 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
+
 use App\Http\Controllers\api\v1\AppointmentController;
+use App\Http\Controllers\api\v1\LiveQueueController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,8 +28,8 @@ Route::middleware([
 ])->prefix('api/v1')->group(function () {
 
     
-    Route::get('appointment', [AppointmentController::class, 'index']);
-    Route::post('appointment/create', [AppointmentController::class, 'store']);
-    Route::put('appointment/{id}', [AppointmentController::class, 'update']);
-    Route::delete('appointment/{id}', [AppointmentController::class, 'destroy']);
+    Route::apiResource('appointments', AppointmentController::class);
+    Route::post('appointments/{id}/check-in', [AppointmentController::class, 'checkIn']);
+
+    Route::apiResource('live-queue', LiveQueueController::class);
 });

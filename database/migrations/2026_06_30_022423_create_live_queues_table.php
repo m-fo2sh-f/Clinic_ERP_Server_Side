@@ -18,7 +18,7 @@ return new class extends Migration
             
             $table->integer('queue_no'); // رقم الدور الفعلي في الصالة (1، 2، 3...)
             // الحالات الحية داخل العيادة فقط: Waiting, Under Examination
-            $table->string('status')->default('Waiting'); 
+            $table->string('status')->default('waiting'); 
             $table->time('checked_in_at'); // وقت الحضور الفعلي للمقارنة وحساب الانتظار
             $table->timestamps();
 

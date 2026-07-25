@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Api\Appointment;
 
+use App\Enums\AppointmentStatus;
+use App\Enums\AppointmentType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateAppointmentRequest extends FormRequest
 {
@@ -21,18 +24,18 @@ class UpdateAppointmentRequest extends FormRequest
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
-    {
-        return [
-            'appointment_time' => 'required|date|after:now',
-            'type'             => 'required|in:Consultation,Follow-up,Emergency',
-            'status'           => 'required|in:Confirmed,Cancelled,Completed,Rescheduled',
-            'branch_id'        => 'required|exists:branches,id',
-            'patient_id'       => 'required|exists:patients,id',
-            "patient.name"     => "required_without:patient_id|string|max:255",
-            "patient.phone"    => "required_without:patient_id|string|max:255",
-
-        ];
-    }
+{
+    return [
+        'appointment_time' => 'sometimes|required|date_format:Y-m-d H:i:s',
+        'branch_id'        => 'sometimes|required|exists:branches,id',
+        'type'             => ['sometimes', 'required', Rule::enum(AppointmentType::class)],
+        'status'           => ['sometimes', 'required', Rule::enum(AppointmentStatus::class)],
+        'patient_id'       => 'nullable|exists:patients,id',
+        'patient'          => 'nullable|array',
+        'patient.name'     => 'nullable|string|max:255',
+        'patient.phone'    => 'nullable|string|max:255',
+    ];
+}
 
      public function messages(): array
     {
