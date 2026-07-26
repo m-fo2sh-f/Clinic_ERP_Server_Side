@@ -22,7 +22,7 @@ return new class extends Migration
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
 
-            $table->index('appointment_time');
+            $table->index(['branch_id', 'appointment_time']);
             
         });
     }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Services\LiveQueueService;
+use App\Models\LiveQueue;
 
 use App\Http\Resources\LiveQueue\LiveQueueResource;
 
@@ -41,4 +42,14 @@ class LiveQueueController extends Controller
             'data'   => new LiveQueueResource($queue) // استخدام الـ Resource للكل
         ], 200);
     }
+public function destroy(string $id)
+{
+    $this->liveQueueService->destroyQueueItem($id);
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Patient removed from waiting queue successfully',
+    ], 200);
 }
+}
+

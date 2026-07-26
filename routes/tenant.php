@@ -31,5 +31,5 @@ Route::middleware([
     Route::apiResource('appointments', AppointmentController::class);
     Route::post('appointments/{id}/check-in', [AppointmentController::class, 'checkIn']);
 
-    Route::apiResource('live-queue', LiveQueueController::class);
+    Route::apiResource('live-queues', LiveQueueController::class);
 });

@@ -39,10 +39,11 @@ class AppointmentService
                 $patientId = $data['patient_id'];
             } else {
                 
-                $patient = Patient::firstOrCreate([
-                'name'  => trim($data['patient']['name']),
-                'phone' => trim($data['patient']['phone']),
-            ]);
+                $patient = Patient::firstOrCreate(
+                    ['phone' => trim($data['patient']['phone'])],
+                    ['name'  => trim($data['patient']['name'])]
+                );
+                
                 $patientId = $patient->id;
             }
 
@@ -89,10 +90,10 @@ class AppointmentService
             
             // مفيش patient_id بس مبعوث اسم ورقم مريض يدوياً
             // بنبحث عنه الأول بـ firstOrCreate عشان نمنع تكراره 🎯
-            $patient = Patient::firstOrCreate([
-                'name'  => trim($data['patient']['name']),
-                'phone' => trim($data['patient']['phone']),
-            ]);
+            $patient = Patient::firstOrCreate(
+                    ['phone' => trim($data['patient']['phone'])],
+                    ['name'  => trim($data['patient']['name'])]
+            );
 
             // نربط الحجز بالمريض (سواء كان قديم أو لسه متكريت جديد)
             $appointment->update(['patient_id' => $patient->id]);
@@ -112,23 +113,32 @@ class AppointmentService
     }
 
     public function checkInAppointment(string $appointmentId): LiveQueue
-    {
-        return DB::transaction(function () use ($appointmentId) {
-            $appointment = Appointment::findOrFail($appointmentId);
+{
+    return DB::transaction(function () use ($appointmentId) {
+        $appointment = Appointment::findOrFail($appointmentId);
 
-            $appointment->update(['status' => AppointmentStatus::CHECKED_IN->value]);
+        // 🛑 1. شرط الأمان: منع تحضير حجز ملغي أو مكتمل سابقاً
+        if (in_array($appointment->status, [
+            AppointmentStatus::CANCELLED->value,
+            AppointmentStatus::COMPLETED->value,
+        ])) {
+            throw new \InvalidArgumentException('لا يمكن تسجيل حضور حجز ملغي أو مكتمل بالفعل.');
+        }
 
-            // Check if patient is already in today's live queue for this appointment
-            $existingQueue = LiveQueue::where('appointment_id', $appointment->id)->first();
-            if ($existingQueue) {
-                return $existingQueue; // Return existing queue record to prevent duplication
-            }
+        // 2. تحديث حالة الحجز لـ Checked-In
+        $appointment->update(['status' => AppointmentStatus::CHECKED_IN->value]);
 
-            // Create new queue record if not exists
-            return $this->liveQueueService->createNewPatientInQueue([
-                'patient_id'     => $appointment->patient_id,
-                'appointment_id' => $appointment->id,
-            ], $appointment->branch_id);
-        });
-    }
+        // 3. التأكد من عدم تكرار المريض في صالة انتظار اليوم
+        $existingQueue = LiveQueue::where('appointment_id', $appointment->id)->first();
+        if ($existingQueue) {
+            return $existingQueue; // ارجاع السجل الحالي لتجنب التكرار
+        }
+
+        // 4. إنشاء سجل جديد في صالة الانتظار الحية
+        return $this->liveQueueService->createNewPatientInQueue([
+            'patient_id'     => $appointment->patient_id,
+            'appointment_id' => $appointment->id,
+        ], $appointment->branch_id);
+    });
+}
 }

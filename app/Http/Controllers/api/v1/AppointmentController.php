@@ -10,6 +10,7 @@ use App\Http\Requests\Api\Appointment\StoreAppointmentRequest;
 use App\Http\Requests\Api\Appointment\UpdateAppointmentRequest;
 // resources
 use App\Http\Resources\Appointments\AppointmentResource;
+use App\Http\Resources\LiveQueue\LiveQueueResource;
 
 class AppointmentController extends Controller
 {
@@ -77,7 +78,7 @@ class AppointmentController extends Controller
         return response()->json([
             "status"  => "success",
             "message" => "تم تأكيد حضور المريض ودخوله صالة الانتظار بنجاح",
-            "data"    => $queueRecord
+            "data"    => new LiveQueueResource($queueRecord->load('patient'))
         ], 200);
     }
 }

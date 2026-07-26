@@ -29,23 +29,27 @@ class LiveQueueService
      * إدراج مريض داخل طابور الانتظار الحي (Check-In)
      */
     
-    public function createNewPatientInQueue(array $data, $branchId)
+   public function createNewPatientInQueue(array $data, $branchId)
     {
-        // حساب نطاق الشفت الحالي لمعرفة أعلى رقم دور مسجل النهارده بالظبط
-        [$startTime, $endTime] = ShiftHelper::getShiftWindow(); // Fetch shift boundaries from helper
+        // 🎯 استخدام DB::transaction للحفاظ على سلامة المعاملة
+        return DB::transaction(function () use ($data, $branchId) {
+            [$startTime, $endTime] = ShiftHelper::getShiftWindow();
 
-        $maxQueueNo = LiveQueue::where('branch_id', $branchId)
-            ->whereBetween('created_at', [$startTime, $endTime])
-            ->max('queue_no') ?? 0;
+            // 🔒 lockForUpdate() بتجبر الريكويستات المتوازية تنتظر لحين استخراج أعلى رقم وتسجيله
+            $maxQueueNo = LiveQueue::where('branch_id', $branchId)
+                ->whereBetween('created_at', [$startTime, $endTime])
+                ->lockForUpdate() 
+                ->max('queue_no') ?? 0;
 
-        return LiveQueue::create([
-            'branch_id'      => $branchId,
-            'patient_id'     => $data['patient_id'],
-            'appointment_id' => $data['appointment_id'] ?? null,
-            'queue_no'       => $maxQueueNo + 1,
-            'checked_in_at'  => now()->toTimeString(),
-            'status'         => LiveQueueStatus::WAITING->value,
-        ]);
+            return LiveQueue::create([
+                'branch_id'      => $branchId,
+                'patient_id'     => $data['patient_id'],
+                'appointment_id' => $data['appointment_id'] ?? null,
+                'queue_no'       => $maxQueueNo + 1,
+                'checked_in_at'  => now()->toTimeString(),
+                'status'         => LiveQueueStatus::WAITING->value,
+            ]);
+        });
     }
 
     public function updateStatus(string $id, string $status): LiveQueue
@@ -69,8 +73,14 @@ class LiveQueueService
                     ->update(['queue_no' => $index + 1]);
             }
         });
-
         // 🚀 طلقة الـ WebSocket: بنرمي الحدث في الجو وبنباصي الـ branchId
         event(new \App\Events\QueueReordered($branchId));
+    }
+
+    public function destroyQueueItem(string $id): bool
+    {
+        $queueItem = LiveQueue::findOrFail($id);
+        
+        return (bool) $queueItem->delete();
     }
 }

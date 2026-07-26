@@ -23,6 +23,7 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
             // لسرعة البحث بالاسم أو التليفون في الـ AutoComplete بالفرونت
             $table->index(['phone', 'name']); 
+            $table->unique(['tenant_id','phone']);
         });
     }
 

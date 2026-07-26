@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->unique(['branch_id', 'queue_no', 'created_at']); // منع تكرار رقم الدور لنفس الفرع في نفس اليوم
+            $table->unique(['branch_id', 'created_at', 'queue_no']);
         });
     }
 
