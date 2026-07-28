@@ -5,10 +5,10 @@ namespace App\Enums;
 enum AppointmentStatus: string
 {
     case BOOKING = 'booking';
-    case CONFIRMED = 'confirmed';
+    case COMPLETED = 'completed';
     case CHECKED_IN = 'checked_in';
     case NO_SHOW = 'no_show';
-    case CANCELED = 'canceled';
+    case CANCELLED = 'canceled';
 
     /**
      * Get all values.

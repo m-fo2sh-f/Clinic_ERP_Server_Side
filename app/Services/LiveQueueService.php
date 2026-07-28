@@ -7,6 +7,7 @@ use App\Models\LiveQueue;
 use Carbon\Carbon;
 use App\Helpers\ShiftHelper;
 use Illuminate\Support\Facades\DB;
+use App\Events\QueueReordered;
 
 class LiveQueueService
 {
@@ -53,16 +54,20 @@ class LiveQueueService
     }
 
     public function updateStatus(string $id, string $status): LiveQueue
-{
-    $queueItem = LiveQueue::findOrFail($id);
-    
-    // Update queue status in database
-    $queueItem->update(['status' => $status]);
-    // 🚀 Optional: Trigger WebSocket event here to notify reception/TV screens live
-    // event(new \App\Events\QueueUpdated($queueItem->branch_id));
+    {
+        $queueItem = LiveQueue::findOrFail($id);
+        
+        // Update queue status in database
+        $queueItem->update(['status' => $status]);
+        // 🚀 Optional: Trigger WebSocket event here to notify reception/TV screens live
+        // event(new \App\Events\QueueUpdated($queueItem->branch_id));
 
-    return $queueItem->load('patient'); // Return item with patient relation loaded
-}
+        return $queueItem->load('patient'); // Return item with patient relation loaded
+    }
+
+    /**
+     * Reorder live queue items for a branch
+     */
     public function reorderQueue(array $orderedIds, string $branchId): void
     {
         DB::transaction(function () use ($orderedIds, $branchId) {
@@ -73,8 +78,8 @@ class LiveQueueService
                     ->update(['queue_no' => $index + 1]);
             }
         });
-        // 🚀 طلقة الـ WebSocket: بنرمي الحدث في الجو وبنباصي الـ branchId
-        event(new \App\Events\QueueReordered($branchId));
+
+        event(new QueueReordered($branchId));
     }
 
     public function destroyQueueItem(string $id): bool

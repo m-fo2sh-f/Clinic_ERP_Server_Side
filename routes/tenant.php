@@ -8,6 +8,7 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 use App\Http\Controllers\api\v1\AppointmentController;
 use App\Http\Controllers\api\v1\LiveQueueController;
+use App\Http\Controllers\api\v1\PatientController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,5 +32,9 @@ Route::middleware([
     Route::apiResource('appointments', AppointmentController::class);
     Route::post('appointments/{id}/check-in', [AppointmentController::class, 'checkIn']);
 
+    Route::post('live-queues/reorder', [LiveQueueController::class, 'reorder']);
     Route::apiResource('live-queues', LiveQueueController::class);
+
+    Route::get('patients/search', [PatientController::class, 'search']);
+
 });

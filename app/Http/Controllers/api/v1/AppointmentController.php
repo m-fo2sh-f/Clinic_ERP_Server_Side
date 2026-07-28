@@ -35,8 +35,9 @@ class AppointmentController extends Controller
             "data"=> AppointmentResource::collection($appointments),          
         ],200);
     }
+   
 
-   public function store(StoreAppointmentRequest $request)
+    public function store(StoreAppointmentRequest $request)
     {
         $appointment = $this->appointmentService->createAppointment($request->validated());
 
@@ -50,9 +51,6 @@ class AppointmentController extends Controller
 
 
     public function update( UpdateAppointmentRequest $request,$id){
-
-      
-
         $appointment = $this->appointmentService->updateAppointment($id,$request->validated());
 
         return response()->json([
