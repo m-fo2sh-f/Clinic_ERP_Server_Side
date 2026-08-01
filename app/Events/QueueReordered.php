@@ -4,11 +4,11 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast; // 🔥 الأهم: بنقوله أذيع في الـ WebSocket
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow; // 🔥 الأهم: بنقوله أذيع في الـ WebSocket
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class QueueReordered implements ShouldBroadcast
+class QueueReordered implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

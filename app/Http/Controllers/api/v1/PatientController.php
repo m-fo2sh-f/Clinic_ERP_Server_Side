@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\api\v1;
+namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use App\Models\Patient;
-
+use App\Http\Resources\Patients\PatientResource;
 
 class PatientController extends Controller
 {
-     public function search(Request $request)
+    public function search(Request $request): JsonResponse
     {
         $query = trim($request->query('q', ''));
 
@@ -30,6 +31,38 @@ class PatientController extends Controller
         return response()->json([
             'status' => 'success',
             'data'   => $patients
+        ]);
+    }
+
+    /**
+     * Get patient full profile with medical history and past appointments.
+     * Used by the Doctor Dashboard to display the active patient's medical file.
+     */
+    public function getHistory(string $id): JsonResponse
+    {
+        $patient = Patient::with([
+            'appointments' => function ($query) {
+                $query->orderBy('appointment_time', 'desc')->with('branch');
+            },
+        ])->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'id'              => $patient->id,
+                'name'            => $patient->name,
+                'phone'           => $patient->phone,
+                'age'             => $patient->age,
+                'gender'          => $patient->gender,
+                'medical_history' => $patient->medical_history,
+                'appointments'    => $patient->appointments->map(fn ($appt) => [
+                    'id'               => $appt->id,
+                    'appointment_time' => $appt->appointment_time,
+                    'type'             => $appt->type,
+                    'status'           => $appt->status,
+                    'branch_name'      => $appt->branch->name ?? null,
+                ]),
+            ],
         ]);
     }
 }

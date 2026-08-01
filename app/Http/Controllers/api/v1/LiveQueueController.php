@@ -76,6 +76,29 @@ class LiveQueueController extends Controller
             'message' => 'Queue reordered successfully',
         ], 200);
     }
+
+    /**
+     * Call the next waiting patient for examination.
+     */
+    public function nextPatient(Request $request): JsonResponse
+    {
+        $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+        ]);
+
+        $nextPatient = $this->liveQueueService->callNextPatient($request->branch_id);
+
+        if (!$nextPatient) {
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'No waiting patients in queue',
+                'data'    => null,
+            ], 200);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => new LiveQueueResource($nextPatient),
+        ], 200);
+    }
 }
-
-

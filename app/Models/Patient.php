@@ -12,4 +12,14 @@ class Patient extends Model
     use BelongsToTenant, HasUuids, HasFactory;
 
     protected $fillable = ['name', 'phone', 'age', 'gender', 'medical_history'];
+
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    public function liveQueues()
+    {
+        return $this->hasMany(LiveQueue::class);
+    }
 }
