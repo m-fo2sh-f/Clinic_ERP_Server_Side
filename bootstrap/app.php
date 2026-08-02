@@ -4,7 +4,11 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Stancl\Tenancy\Middleware\PreventAccessFromTenantDomains;
+
+// 🎯 1. استدعاء Middleware الخاصة بـ Spatie Permission
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +18,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // 🎯 2. تسجيل الـ Aliases لكي يفهم لارافيل كلمة 'role' في الروتات
+        $middleware->alias([
+            'role'               => RoleMiddleware::class,
+            'permission'         => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+        ]);
+
+        // إعدادات الاستثناءات الحالية الخاصة بك
+        $middleware->validateCsrfTokens(except: [
+            'api/login',
+            'api/v1/login',
+            'sanctum/csrf-cookie',
+        ]);
+        
+        $middleware->append(\App\Http\Middleware\SetBranchContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
