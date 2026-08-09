@@ -12,7 +12,15 @@ class LiveQueue extends Model
 {
     use BelongsToTenant, HasUuids, HasFactory;
 
-    protected $fillable = ['branch_id', 'patient_id', 'appointment_id', 'queue_no', 'status', 'checked_in_at'];
+    protected $fillable = [
+        'branch_id',
+        'shift_date',
+        'patient_id',
+        'appointment_id',
+        'queue_no',
+        'status',
+        'checked_in_at',
+    ];
 
     protected function casts(): array
     {
@@ -20,6 +28,7 @@ class LiveQueue extends Model
             'status' => LiveQueueStatus::class,
         ];
     }
+
     public function patient()
     {
         return $this->belongsTo(Patient::class);

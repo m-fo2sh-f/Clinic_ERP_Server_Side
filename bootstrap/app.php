@@ -25,10 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
 
-        // إعدادات الاستثناءات الحالية الخاصة بك
+        // 🎯 استثناء كافة روتات الـ API من فحص الـ HTML Form CSRF Token
         $middleware->validateCsrfTokens(except: [
-            'api/login',
-            'api/v1/login',
+            'api/*',
+            'api/v1/*',
+            '*/api/*',
+            '*/api/v1/*',
             'sanctum/csrf-cookie',
         ]);
         

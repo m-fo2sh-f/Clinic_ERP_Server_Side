@@ -4,9 +4,10 @@ namespace App\Enums;
 
 enum LiveQueueStatus: string
 {
-    case WAITING = 'waiting';
+    case CHECKED_IN        = 'checked_in';
+    case WAITING           = 'waiting';
     case UNDER_EXAMINATION = 'under_examination';
-    case COMPLETED = 'completed';
+    case COMPLETED         = 'completed';
 
     /**
      * Get active queue statuses for branch queries.
@@ -16,6 +17,7 @@ enum LiveQueueStatus: string
     public static function activeStatuses(): array
     {
         return [
+            self::CHECKED_IN->value,
             self::WAITING->value,
             self::UNDER_EXAMINATION->value,
         ];

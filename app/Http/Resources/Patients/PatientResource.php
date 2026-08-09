@@ -15,13 +15,16 @@ class PatientResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            "id"=> $this->id,
-            "name"=> $this->name,
-            "phone"=> $this->phone,
-            "age"=> $this->age,
-            "gender"=> $this->gender,
-            "medical_history"=> $this->medical_history,
-            
+            'id'                           => $this->id,
+            'name'                         => $this->name,
+            'phone'                        => $this->phone,
+            'age'                          => $this->age,
+            'gender'                       => $this->gender,
+            'medical_history'              => $this->medical_history,
+            'total_completed_count'        => (int) ($this->total_completed_count ?? 0),
+            'branch_completed_count'       => (int) ($this->branch_completed_count ?? 0),
+            'completed_appointments_count' => (int) ($this->completed_appointments_count ?? $this->total_completed_count ?? 0),
+            'created_at'                   => $this->created_at?->toIso8601String(),
         ];
     }
 }

@@ -101,4 +101,29 @@ class LiveQueueController extends Controller
             'data'   => new LiveQueueResource($nextPatient),
         ], 200);
     }
+
+    /**
+     * Direct Walk-In check-in (creates Appointment SSOT + LiveQueue record).
+     */
+    public function checkInWalkIn(Request $request, \App\Services\AppointmentService $appointmentService): JsonResponse
+    {
+        $request->validate([
+            'branch_id'      => 'required|exists:branches,id',
+            'patient_id'     => 'nullable|exists:patients,id',
+            'patient'        => 'required_without:patient_id|array',
+            'patient.name'   => 'required_without:patient_id|string|max:255',
+            'patient.phone'  => 'required_without:patient_id|string|max:255',
+        ]);
+
+        $queueRecord = $appointmentService->checkInWalkIn(
+            $request->only(['patient_id', 'patient']),
+            $request->branch_id
+        );
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم تسجيل المريض المباشر ودخوله صالة الانتظار بنجاح',
+            'data'    => new LiveQueueResource($queueRecord->load('patient'))
+        ], 201);
+    }
 }

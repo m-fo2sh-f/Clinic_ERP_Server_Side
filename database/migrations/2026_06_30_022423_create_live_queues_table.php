@@ -12,18 +12,20 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('tenant_id');
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->date('shift_date')->nullable();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
-            // لو جاي من حجز مسبق بنربطه بيه، لو Walk-in بيفضل سطر الحجز نال
             $table->foreignUuid('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
             
-            $table->integer('queue_no'); // رقم الدور الفعلي في الصالة (1، 2، 3...)
-            // الحالات الحية داخل العيادة فقط: Waiting, Under Examination
-            $table->string('status')->default('waiting'); 
-            $table->time('checked_in_at'); // وقت الحضور الفعلي للمقارنة وحساب الانتظار
+            $table->integer('queue_no');
+            $table->string('status')->default('checked_in'); 
+            $table->time('checked_in_at');
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->unique(['branch_id', 'created_at', 'queue_no']);
+            
+            // Active Queue Covering Index for High Performance
+            $table->index(['tenant_id', 'branch_id', 'status', 'queue_no'], 'idx_queues_active_shift');
+            $table->index(['branch_id', 'created_at']);
         });
     }
 

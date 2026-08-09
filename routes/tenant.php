@@ -47,12 +47,14 @@ Route::middleware([
                 Route::apiResource('appointments', AppointmentController::class);
                 Route::post('appointments/{id}/check-in', [AppointmentController::class, 'checkIn']);
 
-                // صالة الانتظار الحية (عرض، إضافة، تعديل ترتيب)
+                // صالة الانتظار الحية (عرض، إضافة، تعديل ترتيب، تسجيل مباشر Walk-In)
                 Route::post('live-queues/reorder', [LiveQueueController::class, 'reorder']);
+                Route::post('live-queues/check-in-walkin', [LiveQueueController::class, 'checkInWalkIn']);
                 Route::apiResource('live-queues', LiveQueueController::class);
 
-                // البحث عن مرضى
-                Route::get('patients/search', [PatientController::class, 'search']);
+                // المرضى وقائمة الأدلة
+                Route::get('patients/search', [PatientController::class, 'search'])->middleware('throttle:60,1');
+                Route::apiResource('patients', PatientController::class);
             });
         };
 

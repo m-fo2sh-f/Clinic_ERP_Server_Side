@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\LiveQueueStatus;
 use App\Models\Appointment;
 use App\Models\Patient;
 use Illuminate\Support\Facades\DB;
@@ -11,26 +12,25 @@ use App\Services\LiveQueueService;
 use App\Models\LiveQueue;
 use App\Helpers\ShiftHelper;
 
-
 class AppointmentService 
 {
+    private LiveQueueService $liveQueueService;
 
-    private $liveQueueService;
-    public function __construct(LiveQueueService $liveQueueService) {
+    public function __construct(LiveQueueService $liveQueueService)
+    {
         $this->liveQueueService = $liveQueueService;
     }
-    
 
     public function getAllAppointmentsForBranch(int|string $branchId, ?string $date = null)
     {
         [$startTime, $endTime] = ShiftHelper::getShiftWindow($date);
-    // بنعمل الفلترة بـ whereBetween لضمان السرعة والأمان 🎯
-    return Appointment::where('branch_id', $branchId)
-        ->with('patient')
-        ->whereBetween('appointment_time', [$startTime, $endTime])
-        ->orderBy('appointment_time', 'asc')
-        ->get();
-}
+
+        return Appointment::where('branch_id', $branchId)
+            ->with('patient')
+            ->whereBetween('appointment_time', [$startTime, $endTime])
+            ->orderBy('appointment_time', 'asc')
+            ->get();
+    }
 
     public function createAppointment(array $data): Appointment
     {
@@ -38,12 +38,10 @@ class AppointmentService
             if (!empty($data['patient_id'])) {
                 $patientId = $data['patient_id'];
             } else {
-                
                 $patient = Patient::firstOrCreate(
                     ['phone' => trim($data['patient']['phone'])],
                     ['name'  => trim($data['patient']['name'])]
                 );
-                
                 $patientId = $patient->id;
             }
 
@@ -52,59 +50,71 @@ class AppointmentService
                 'patient_id'       => $patientId,
                 'appointment_time' => $data['appointment_time'],
                 'type'             => $data['type'],
-                'status'           => $data['status'] ?? AppointmentStatus::CONFIRMED->value,
+                'status'           => $data['status'] ?? AppointmentStatus::BOOKING->value,
             ]);
         });
     }
 
     public function updateAppointment(string $id, array $data): Appointment
     {
-    return DB::transaction(function () use ($id, $data) {
-        // 1. جلب الحجز والمريض المرتبط بيه
-        $appointment = Appointment::with('patient')->findOrFail($id);
-        
-        // 2. تحديث بيانات الحجز بمرونة (لو الحقل مبعوث يرتفع، لو مش مبعوث يفضل بالقديم)
-        $appointment->update([
-            'appointment_time' => $data['appointment_time'] ?? $appointment->appointment_time,
-            'type'             => $data['type']             ?? $appointment->type, 
-            'status'           => $data['status']           ?? $appointment->status,
-        ]);
-
-        // 3. التعامل الذكي مع بيانات المريض
-        if (!empty($data['patient_id'])) {
+        return DB::transaction(function () use ($id, $data) {
+            $appointment = Appointment::with('patient')->findOrFail($id);
             
-            if ($appointment->patient_id === $data['patient_id']) {
-                // المريض هو هو نفس المريض الأصلي للحجز -> نكتفي بتحديث اسمه وهاتفه لو مبعوثين
-                if (!empty($data['patient'])) {
-                    $appointment->patient->update([
-                        'name'  => $data['patient']['name']  ?? $appointment->patient->name,
-                        'phone' => $data['patient']['phone'] ?? $appointment->patient->phone,
-                    ]);
+            $appointment->update(array_filter([
+                'appointment_time' => $data['appointment_time'] ?? null,
+                'type'             => $data['type']             ?? null, 
+                'status'           => $data['status']           ?? null,
+                'branch_id'        => $data['branch_id']        ?? null,
+            ]));
+
+            if (!empty($data['patient']['phone'])) {
+                $phone = trim($data['patient']['phone']);
+                $name  = !empty($data['patient']['name']) ? trim($data['patient']['name']) : null;
+
+                $currentPatient = $appointment->patient;
+                $existingPatient = Patient::where('phone', $phone)->first();
+
+                if ($existingPatient) {
+                    $appointment->update(['patient_id' => $existingPatient->id]);
+                    if ($name && $existingPatient->name !== $name) {
+                        $existingPatient->update(['name' => $name]);
+                    }
+                } else {
+                    $hasOtherAppointments = $currentPatient 
+                        ? Appointment::where('patient_id', $currentPatient->id)
+                            ->where('id', '!=', $appointment->id)
+                            ->exists()
+                        : false;
+
+                    if ($hasOtherAppointments) {
+                        $newPatient = Patient::create([
+                            'phone' => $phone,
+                            'name'  => $name ?? 'مريض جديد',
+                        ]);
+                        $appointment->update(['patient_id' => $newPatient->id]);
+                    } else {
+                        if ($currentPatient) {
+                            $currentPatient->update([
+                                'phone' => $phone,
+                                'name'  => $name ?? $currentPatient->name,
+                            ]);
+                        } else {
+                            $newPatient = Patient::create([
+                                'phone' => $phone,
+                                'name'  => $name ?? 'مريض جديد',
+                            ]);
+                            $appointment->update(['patient_id' => $newPatient->id]);
+                        }
+                    }
                 }
-            } else {
-                // تم اختيار مريض مختلف تماماً من القائمة -> نربط الحجز بالـ patient_id الجديد
+            } elseif (!empty($data['patient_id']) && $data['patient_id'] !== $appointment->patient_id) {
                 $appointment->update(['patient_id' => $data['patient_id']]);
             }
 
-        } elseif (!empty($data['patient']['name']) && !empty($data['patient']['phone'])) {
-            
-            // مفيش patient_id بس مبعوث اسم ورقم مريض يدوياً
-            // بنبحث عنه الأول بـ firstOrCreate عشان نمنع تكراره 🎯
-            $patient = Patient::firstOrCreate(
-                    ['phone' => trim($data['patient']['phone'])],
-                    ['name'  => trim($data['patient']['name'])]
-            );
-
-            // نربط الحجز بالمريض (سواء كان قديم أو لسه متكريت جديد)
-            $appointment->update(['patient_id' => $patient->id]);
-        }
-
-        // لو مبعتناش أي داتا للمريض (زي ريكويست الـ Check-In الصامت)، الحجز هيفضل مربوط بمريضه القديم بسلام 🛡️
-
-        $appointment->load('patient');
-        return $appointment;
-    });
-}
+            $appointment->load('patient');
+            return $appointment;
+        });
+    }
 
     public function destroyAppointment(string $id): bool
     {
@@ -112,33 +122,68 @@ class AppointmentService
         return (bool) $appointment->delete();
     }
 
+    /**
+     * Check-in an existing booked appointment into the live queue.
+     */
     public function checkInAppointment(string $appointmentId): LiveQueue
-{
-    return DB::transaction(function () use ($appointmentId) {
-        $appointment = Appointment::findOrFail($appointmentId);
+    {
+        return DB::transaction(function () use ($appointmentId) {
+            $appointment = Appointment::lockForUpdate()->findOrFail($appointmentId);
+            $currentStatus = $appointment->status instanceof AppointmentStatus 
+                ? $appointment->status->value 
+                : $appointment->status;
 
-        // 🛑 1. شرط الأمان: منع تحضير حجز ملغي أو مكتمل سابقاً
-        if (in_array($appointment->status, [
-            AppointmentStatus::CANCELLED->value,
-            AppointmentStatus::COMPLETED->value,
-        ])) {
-            throw new \InvalidArgumentException('لا يمكن تسجيل حضور حجز ملغي أو مكتمل بالفعل.');
-        }
+            if (in_array($currentStatus, [
+                AppointmentStatus::CANCELLED->value,
+                AppointmentStatus::COMPLETED->value,
+            ])) {
+                throw new \InvalidArgumentException('لا يمكن تسجيل حضور حجز ملغي أو مكتمل بالفعل.');
+            }
 
-        // 2. تحديث حالة الحجز لـ Checked-In
-        $appointment->update(['status' => AppointmentStatus::CHECKED_IN->value]);
+            $appointment->update(['status' => AppointmentStatus::CHECKED_IN->value]);
 
-        // 3. التأكد من عدم تكرار المريض في صالة انتظار اليوم
-        $existingQueue = LiveQueue::where('appointment_id', $appointment->id)->first();
-        if ($existingQueue) {
-            return $existingQueue; // ارجاع السجل الحالي لتجنب التكرار
-        }
+            $existingQueue = LiveQueue::where('appointment_id', $appointment->id)->first();
+            if ($existingQueue) {
+                return $existingQueue;
+            }
 
-        // 4. إنشاء سجل جديد في صالة الانتظار الحية
-        return $this->liveQueueService->createNewPatientInQueue([
-            'patient_id'     => $appointment->patient_id,
-            'appointment_id' => $appointment->id,
-        ], $appointment->branch_id);
-    });
-}
+            return $this->liveQueueService->createNewPatientInQueue([
+                'patient_id'     => $appointment->patient_id,
+                'appointment_id' => $appointment->id,
+            ], $appointment->branch_id);
+        });
+    }
+
+    /**
+     * Check-in a Walk-In patient with automatic Appointment SSOT ledger record creation.
+     */
+    public function checkInWalkIn(array $data, string $branchId): LiveQueue
+    {
+        return DB::transaction(function () use ($data, $branchId) {
+            if (!empty($data['patient_id'])) {
+                $patientId = $data['patient_id'];
+            } else {
+                $patient = Patient::firstOrCreate(
+                    ['phone' => trim($data['patient']['phone'])],
+                    ['name'  => trim($data['patient']['name'])]
+                );
+                $patientId = $patient->id;
+            }
+
+            // 1. Create permanent Appointment SSOT record for Walk-In
+            $appointment = Appointment::create([
+                'branch_id'        => $branchId,
+                'patient_id'       => $patientId,
+                'appointment_time' => now(),
+                'type'             => 'check_up',
+                'status'           => AppointmentStatus::CHECKED_IN->value,
+            ]);
+
+            // 2. Insert patient into live operational queue
+            return $this->liveQueueService->createNewPatientInQueue([
+                'patient_id'     => $patientId,
+                'appointment_id' => $appointment->id,
+            ], $branchId);
+        });
+    }
 }
