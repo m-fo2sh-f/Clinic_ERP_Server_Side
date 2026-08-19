@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -32,7 +32,7 @@ class NextPatientCalled implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new Channel('branch.' . $this->branchId),
+            new PrivateChannel('live-queue.' . $this->branchId),
         ];
     }
 

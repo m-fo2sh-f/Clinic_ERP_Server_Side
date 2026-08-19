@@ -26,6 +26,8 @@ class LiveQueueController extends Controller
             "branch_id" => "required|exists:branches,id",
         ]);
 
+        $this->authorizeBranchAccess($request->user(), $request->branch_id);
+
         $queue = $this->liveQueueService->getQueueForBranch($request->branch_id);
 
         return response()->json([
@@ -40,6 +42,9 @@ class LiveQueueController extends Controller
             "status" => ["required", Rule::enum(LiveQueueStatus::class)],
         ]);
 
+        $queueItem = LiveQueue::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $queueItem->branch_id);
+
         $queue = $this->liveQueueService->updateStatus($id, $request->status);
 
         return response()->json([
@@ -48,8 +53,11 @@ class LiveQueueController extends Controller
         ], 200);
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $queueItem = LiveQueue::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $queueItem->branch_id);
+
         $this->liveQueueService->destroyQueueItem($id);
 
         return response()->json([
@@ -65,6 +73,8 @@ class LiveQueueController extends Controller
             'ordered_ids.*' => 'required|string',
             'branch_id'     => 'required|string',
         ]);
+
+        $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
         $this->liveQueueService->reorderQueue(
             $request->ordered_ids,
@@ -85,6 +95,8 @@ class LiveQueueController extends Controller
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
         ]);
+
+        $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
         $nextPatient = $this->liveQueueService->callNextPatient($request->branch_id);
 
@@ -114,6 +126,8 @@ class LiveQueueController extends Controller
             'patient.name'   => 'required_without:patient_id|string|max:255',
             'patient.phone'  => 'required_without:patient_id|string|max:255',
         ]);
+
+        $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
         $queueRecord = $appointmentService->checkInWalkIn(
             $request->only(['patient_id', 'patient']),

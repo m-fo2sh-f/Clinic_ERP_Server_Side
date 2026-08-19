@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-   public function login(Request $request)
+    public function login(Request $request)
 {
     $credentials = $request->validate([
         'email' => 'required|email',
@@ -21,8 +21,6 @@ class AuthController extends Controller
 
     $user = Auth::user();
 
-    // 🎯 1. التأكد من أن المستخدم يتبع العيادة الحالية (Tenant Guard)
-    // لو شغالين بـ tenant_id في جدول users:
     if (method_exists($user, 'tenant') && $user->tenant_id !== tenant('id')) {
         Auth::logout();
         return response()->json(['message' => 'هذا الحساب لا يمتلك صلاحية الدخول لهذه العيادة'], 403);

@@ -170,10 +170,14 @@ class LiveQueueService
                         'doctor_name'  => 'Dr. Ahmed',
                         'room_name'    => 'Room 1',
                     ]));
+                } catch (\Throwable $e) {
+                    logger()->warning('WebSocket NextPatientCalled broadcast failed: ' . $e->getMessage());
+                }
 
+                try {
                     event(new LiveQueueUpdated($branchId));
                 } catch (\Throwable $e) {
-                    logger()->warning('WebSocket broadcast failed in callNextPatient: ' . $e->getMessage());
+                    logger()->warning('WebSocket LiveQueueUpdated broadcast failed in callNextPatient: ' . $e->getMessage());
                 }
             });
 
@@ -184,26 +188,74 @@ class LiveQueueService
     /**
      * إعادة ترتيب طابور الانتظار
      */
+    /**
+ * إعادة ترتيب طابور الانتظار بـ High Performance
+ */
+/**
+ * إعادة ترتيب طابور الانتظار بـ High Performance وبدون تضارب مع المرتين المنتهية
+ */
     public function reorderQueue(array $orderedIds, string $branchId): void
     {
+        // لو مفيش عناصر مبعوثة، نخرج فوراً
+        if (empty($orderedIds)) {
+            return;
+        }
+
         DB::transaction(function () use ($orderedIds, $branchId) {
+            // 1. قفل صف الفرع لمنع الـ Deadlocks
+            DB::table('branches')->where('id', $branchId)->lockForUpdate()->get();
+
+            // 2. جلب أرقام الدور الحالية الخاصة بالعناصر المراد ترتيبها وترتيبها تصاعدياً
+            // لكي نحافظ على نفس نطاق الأرقام النشطة (مثلاً لو الباقي 2، 3، 4 نحتفظ بهم ولا نبدأ من 1)
+            $currentQueueItems = DB::table('live_queues')
+                ->whereIn('id', $orderedIds)
+                ->where('branch_id', $branchId)
+                ->orderBy('queue_no', 'asc')
+                ->pluck('queue_no', 'id')
+                ->toArray();
+
+            // استخراج الأرقام وترتيبها تصاعدياً لتصبح هي الأرقام المتاحة للتوزيع الجديد
+            $availableQueueNumbers = array_values($currentQueueItems);
+            sort($availableQueueNumbers);
+
+            // 3. تفريغ قيم queue_no للمرضى المحددين بإعطائهم أرقام سالبة مؤقتة 
+            // لتفريغ القيم الإيجابية وتجنب الـ Unique Constraint مع المريض الـ Completed (اللي رقمه 1 مثلاً)
+            DB::table('live_queues')
+                ->whereIn('id', $orderedIds)
+                ->where('branch_id', $branchId)
+                ->update(['queue_no' => DB::raw('-queue_no')]);
+
+            // 4. بناء استعلام CASE WHEN لتوزيع أرقام الدور الصحيحة بناءً على الترتيب الجديد القادم من الفرونت إند
+            $cases = [];
+            $params = [];
             foreach ($orderedIds as $index => $id) {
-                DB::table('live_queues')
-                    ->where('id', $id)
-                    ->where('branch_id', $branchId)
-                    ->update(['queue_no' => $index + 1]);
+                // نأخذ الرقم من مجموعة الأرقام المتاحة ونربطه بالـ ID الجديد في الترتيب
+                $assignedQueueNo = $availableQueueNumbers[$index];
+
+                $cases[] = "WHEN id = ? THEN ?";
+                $params[] = $id;
+                $params[] = $assignedQueueNo; 
             }
 
+            $casesSql = implode(' ', $cases);
+
+            // تنفيذ التحديث النهائي في Query واحد سريع جداً
+            DB::statement(
+                "UPDATE live_queues SET queue_no = CASE {$casesSql} END WHERE id IN (" . implode(',', array_fill(0, count($orderedIds), '?')) . ") AND branch_id = ?",
+                array_merge($params, $orderedIds, [$branchId] )
+            );
+
+            // 5. إطلاق WebSockets بعد Commit التعديلات
             DB::afterCommit(function () use ($branchId) {
                 try {
                     event(new QueueReordered($branchId));
-                    event(new LiveQueueUpdated($branchId));
                 } catch (\Throwable $e) {
                     logger()->warning('WebSocket broadcast failed in reorderQueue: ' . $e->getMessage());
                 }
             });
         });
     }
+    
 
     /**
      * حذف مريض من طابور الانتظار

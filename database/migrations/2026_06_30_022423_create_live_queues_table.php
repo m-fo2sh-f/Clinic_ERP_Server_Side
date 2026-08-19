@@ -25,7 +25,13 @@ return new class extends Migration
             
             // Active Queue Covering Index for High Performance
             $table->index(['tenant_id', 'branch_id', 'status', 'queue_no'], 'idx_queues_active_shift');
-            $table->index(['branch_id', 'created_at']);
+            // Deterministic Unique Index per shift
+            $table->unique(['tenant_id', 'branch_id', 'shift_date', 'queue_no'], 'uniq_queues_branch_shift_no');
+            // Foreign Key Indexes for fast lookups & cascades
+            $table->index(['tenant_id', 'appointment_id'], 'idx_queues_tenant_appointment');
+            $table->index(['tenant_id', 'patient_id'], 'idx_queues_tenant_patient');
+            // Tenant & Branch historical composite index
+            $table->index(['tenant_id', 'branch_id', 'created_at'], 'idx_queues_tenant_branch_created');
         });
     }
 

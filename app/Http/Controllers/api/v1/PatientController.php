@@ -31,14 +31,8 @@ class PatientController extends Controller
         $branchId = $request->query('branch_id');
         $search   = $request->query('search');
 
-        // IDOR: validate branch ownership if branch_id is provided
-        if ($branchId && $request->user()) {
-            $user = $request->user();
-            if (!$user->hasRole('clinic_owner') && !$user->hasRole('tenant_admin')) {
-                if (method_exists($user, 'branches') && !$user->branches()->where('branches.id', $branchId)->exists()) {
-                    return response()->json(['message' => 'غير مصرح لك بالوصول لبيانات هذا الفرع.'], 403);
-                }
-            }
+        if ($branchId) {
+            $this->authorizeBranchAccess($request->user(), $branchId);
         }
 
         $patients = $this->patientService->getTenantPatients($branchId, $search);

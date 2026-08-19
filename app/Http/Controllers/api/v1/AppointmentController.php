@@ -12,6 +12,8 @@ use App\Http\Requests\Api\Appointment\UpdateAppointmentRequest;
 use App\Http\Resources\Appointments\AppointmentResource;
 use App\Http\Resources\LiveQueue\LiveQueueResource;
 
+use App\Models\Appointment;
+
 class AppointmentController extends Controller
 {
     private $appointmentService;
@@ -19,26 +21,27 @@ class AppointmentController extends Controller
         $this->appointmentService = $appointmentService;
     }
 
-
     public function index(Request $request)
     {
-
         $request->validate([
-            "branch_id"=> "required|exists:branches,id",
+            "branch_id" => "required|exists:branches,id",
             "date"      => "nullable|date_format:Y-m-d" 
         ]);
+
+        $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
         $appointments = $this->appointmentService->getAllAppointmentsForBranch($request->branch_id, $request->date);
 
         return response()->json([
-            "status"=> "success",
-            "data"=> AppointmentResource::collection($appointments),          
-        ],200);
+            "status" => "success",
+            "data"   => AppointmentResource::collection($appointments),          
+        ], 200);
     }
-   
 
     public function store(StoreAppointmentRequest $request)
     {
+        $this->authorizeBranchAccess($request->user(), $request->branch_id);
+
         $appointment = $this->appointmentService->createAppointment($request->validated());
 
         $appointment->load('patient');
@@ -49,9 +52,16 @@ class AppointmentController extends Controller
         ], 201);
     }
 
+    public function update(UpdateAppointmentRequest $request, string $id)
+    {
+        $existing = Appointment::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $existing->branch_id);
 
-    public function update( UpdateAppointmentRequest $request,$id){
-        $appointment = $this->appointmentService->updateAppointment($id,$request->validated());
+        if ($request->has('branch_id') && $request->branch_id !== $existing->branch_id) {
+            $this->authorizeBranchAccess($request->user(), $request->branch_id);
+        }
+
+        $appointment = $this->appointmentService->updateAppointment($id, $request->validated());
 
         return response()->json([
             "status" => "success",
@@ -59,18 +69,24 @@ class AppointmentController extends Controller
         ], 200);
     }
 
+    public function destroy(Request $request, string $id)
+    {
+        $existing = Appointment::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $existing->branch_id);
 
-    public function destroy($id){
-        $appointment = $this->appointmentService->destroyAppointment($id);
+        $this->appointmentService->destroyAppointment($id);
         
-            return response()->json([
-            "status" => 'success',
+        return response()->json([
+            "status"  => 'success',
             "message" => "Appointment deleted successfully"
         ], 200);
-        
     }
 
-    public function checkIn(string $id){
+    public function checkIn(Request $request, string $id)
+    {
+        $existing = Appointment::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $existing->branch_id);
+
         $queueRecord = $this->appointmentService->checkInAppointment($id);
 
         return response()->json([

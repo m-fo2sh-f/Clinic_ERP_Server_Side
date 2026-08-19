@@ -12,7 +12,6 @@ return new class extends Migration
             $table->uuid('id')->primary(); // معرف المريض UUID ليكون متوافق مع الـ Scalability مستقبلاً
             $table->string('tenant_id');
 
-            
             $table->string('name'); 
             $table->string('phone'); 
             $table->integer('age')->nullable();
@@ -21,9 +20,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            // لسرعة البحث بالاسم أو التليفون في الـ AutoComplete بالفرونت
-            $table->index(['phone', 'name']); 
-            $table->unique(['tenant_id','phone']);
+            
+            // Search index prefixed with tenant_id for strict tenant isolation
+            $table->index(['tenant_id', 'phone', 'name'], 'idx_patients_tenant_phone_name'); 
+            $table->unique(['tenant_id', 'phone']);
+            $table->fullText(['name', 'phone'], 'ft_patients_name_phone');
         });
     }
 

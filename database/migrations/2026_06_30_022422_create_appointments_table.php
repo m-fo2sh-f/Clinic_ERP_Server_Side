@@ -23,7 +23,6 @@ return new class extends Migration
             // Multi-tenant covering composite indexes for ultra-fast queries
             $table->index(['tenant_id', 'branch_id', 'status', 'appointment_time'], 'idx_appts_tenant_branch_status_time');
             $table->index(['tenant_id', 'patient_id', 'status'], 'idx_appts_tenant_patient_status');
-            $table->index(['branch_id', 'appointment_time']);
         });
     }
 
