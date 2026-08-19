@@ -36,6 +36,23 @@ class LiveQueueController extends Controller
         ], 200);
     }
 
+    /**
+     * Unauthenticated public endpoint for TV Waiting Room displays.
+     */
+    public function publicIndex(Request $request): JsonResponse
+    {
+        $request->validate([
+            "branch_id" => "required|exists:branches,id",
+        ]);
+
+        $queue = $this->liveQueueService->getQueueForBranch($request->branch_id);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => LiveQueueResource::collection($queue)
+        ], 200);
+    }
+
     public function update(Request $request, string $id): JsonResponse
     {
         $request->validate([

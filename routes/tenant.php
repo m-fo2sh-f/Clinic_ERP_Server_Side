@@ -22,6 +22,7 @@ Route::middleware([
     // 🔓 1. روتات عامة مفتوحة للجميع (Public Routes)
     Route::get('/sanctum/csrf-cookie', fn() => response()->noContent());
     Route::post('/api/v1/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::get('/api/v1/public/live-queues', [LiveQueueController::class, 'publicIndex'])->middleware('throttle:120,1');
 
     // 🔒 2. روتات تتطلب تسجيل دخول إجباري (Authenticated Routes)
     Route::middleware('auth:sanctum')->group(function () {
