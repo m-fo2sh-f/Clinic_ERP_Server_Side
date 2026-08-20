@@ -9,21 +9,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('patients', function (Blueprint $table) {
-            $table->uuid('id')->primary(); // معرف المريض UUID ليكون متوافق مع الـ Scalability مستقبلاً
+            $table->uuid('id')->primary();
             $table->string('tenant_id');
-
-            $table->string('name'); 
-            $table->string('phone'); 
+            $table->string('medical_number')->nullable();
+            $table->string('name');
+            $table->string('phone');
+            $table->date('date_of_birth')->nullable();
             $table->integer('age')->nullable();
             $table->enum('gender', ['male', 'female'])->nullable();
-            $table->text('medical_history')->nullable(); // أمراض مزمنة أو حساسية
+            $table->string('blood_group', 5)->nullable();
+            $table->text('chronic_diseases')->nullable();
+            $table->text('allergies')->nullable();
+            $table->text('surgeries')->nullable();
+            $table->text('medical_history')->nullable();
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            
-            // Search index prefixed with tenant_id for strict tenant isolation
-            $table->index(['tenant_id', 'phone', 'name'], 'idx_patients_tenant_phone_name'); 
+
+            $table->index(['tenant_id', 'phone', 'name'], 'idx_patients_tenant_phone_name');
             $table->unique(['tenant_id', 'phone']);
+            $table->unique(['tenant_id', 'medical_number']);
             $table->fullText(['name', 'phone'], 'ft_patients_name_phone');
         });
     }

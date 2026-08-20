@@ -118,6 +118,8 @@ class DatabaseSeeder extends Seeder
             $sarah->syncRoles([$receptionRole]);
             $sarah->branches()->syncWithoutDetaching([$nasrCity->id, $heliopolis->id, $sheikhZayed->id]);
         });
+
+        // 3. Seed Medical Data (Drugs, Patients, Appointments, Queues, Prescriptions)
+        $this->call(MedicalDataSeeder::class);
     }
 }
-
