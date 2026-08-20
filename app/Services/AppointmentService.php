@@ -175,7 +175,7 @@ class AppointmentService
                 'branch_id'        => $branchId,
                 'patient_id'       => $patientId,
                 'appointment_time' => now(),
-                'type'             => 'check_up',
+                'type'             => $data['type'] ?? 'check_up',
                 'status'           => AppointmentStatus::CHECKED_IN->value,
             ]);
 

@@ -142,12 +142,13 @@ class LiveQueueController extends Controller
             'patient'        => 'required_without:patient_id|array',
             'patient.name'   => 'required_without:patient_id|string|max:255',
             'patient.phone'  => 'required_without:patient_id|string|max:255',
+            'type'           => 'nullable|string|in:check_up,consultation',
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
         $queueRecord = $appointmentService->checkInWalkIn(
-            $request->only(['patient_id', 'patient']),
+            $request->only(['patient_id', 'patient', 'type']),
             $request->branch_id
         );
 
