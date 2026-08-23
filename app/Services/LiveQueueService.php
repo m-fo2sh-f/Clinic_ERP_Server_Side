@@ -265,7 +265,12 @@ class LiveQueueService
         return DB::transaction(function () use ($id) {
             $queueItem = LiveQueue::lockForUpdate()->findOrFail($id);
             $branchId  = $queueItem->branch_id;
-            
+
+            // إلغاء الحجز الأصلي المرتبط بهذا المريض
+            if ($queueItem->appointment_id) {
+                Appointment::where('id', $queueItem->appointment_id)
+                    ->update(['status' => AppointmentStatus::BOOKING->value]);
+            }
             $deleted = (bool) $queueItem->delete();
 
             if ($deleted) {

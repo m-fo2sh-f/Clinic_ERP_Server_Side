@@ -37,7 +37,6 @@ Route::middleware([
 
         // 🎯 الروتات المحمية حسب الـ Roles
         $registerProtectedApiRoutes = function () {
-            Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
             // 🩺 أ. روتات خاصة بالدكتور ومالك العيادة فقط (Doctor & Clinic Owner Only)
             Route::middleware('role:doctor|clinic_owner')->group(function () {

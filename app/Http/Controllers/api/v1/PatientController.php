@@ -65,10 +65,16 @@ class PatientController extends Controller
      */
     public function update(Request $request, string $id): JsonResponse
     {
-        $validated = $request->validate([
-            'name'             => 'nullable|string|max:255',
-            'phone'            => 'nullable|string|max:50',
-            'gender'           => 'nullable|string|max:20',
+        $patient = Patient::findOrFail($id);
+
+    // 🔒 1. التحقق من صلاحية الفرع إذا تم تمريره في الطلب
+        if ($request->filled('branch_id')) {
+            $this->authorizeBranchAccess($request->user(), $request->branch_id);
+        }
+
+        // 🩺 2. القواعد الأساسية المسموحة لجميع الأدوار الطبية (البيانات السريرية والديموغرافية)
+        $rules = [
+            'gender'           => 'nullable|in:male,female',
             'age'              => 'nullable|integer|min:0|max:150',
             'date_of_birth'    => 'nullable|date',
             'blood_group'      => 'nullable|string|max:10',
@@ -76,16 +82,25 @@ class PatientController extends Controller
             'allergies'        => 'nullable|string|max:1000',
             'surgeries'        => 'nullable|string|max:1000',
             'medical_history'  => 'nullable|string|max:2000',
-        ]);
+            'branch_id'        => 'nullable|exists:branches,id',
+        ];
 
-        $patient = Patient::findOrFail($id);
+        // 📋 3. قصر تعديل الاسم والهاتف على الريسبشن وأدمن العيادة فقط
+        if ($request->user()->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
+            $rules['name']  = 'sometimes|required|string|max:255';
+            $rules['phone'] = 'sometimes|required|string|max:50';
+        }
+
+        $validated = $request->validate($rules);
+
+        // إزالة القيم الفارغة وتحديث السجل
         $patient->update(array_filter($validated, fn ($val) => !is_null($val)));
 
         return response()->json([
             'status'  => 'success',
             'message' => 'Patient profile updated successfully',
             'data'    => new PatientResource($patient),
-        ]);
+        ], 200);
     }
 
     /**

@@ -24,10 +24,14 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
 
             $table->index(['tenant_id', 'branch_id', 'doctor_id', 'status', 'queue_no'], 'idx_queues_active_shift_doctor');
-            $table->unique(['tenant_id', 'branch_id', 'doctor_id', 'shift_date', 'queue_no'], 'uniq_queues_branch_shift_no');
+            $table->unique(['tenant_id', 'branch_id', 'shift_date', 'queue_no'], 'uniq_queues_branch_shift_no');
             $table->index(['tenant_id', 'appointment_id'], 'idx_queues_tenant_appointment');
             $table->index(['tenant_id', 'patient_id'], 'idx_queues_tenant_patient');
             $table->index(['tenant_id', 'branch_id', 'created_at'], 'idx_queues_tenant_branch_created');
+            $table->index(
+                ['tenant_id', 'branch_id', 'status', 'created_at', 'queue_no'], 
+                'idx_queues_active_shift_lookup'
+            );
         });
     }
 
