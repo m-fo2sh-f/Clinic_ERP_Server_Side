@@ -25,9 +25,7 @@ class Appointment extends Model
         'chief_complaint',
         'diagnosis',
         'clinical_examination',
-        'blood_pressure',
-        'weight',
-        'temperature',
+        'vitals',
         'started_at',
         'completed_at',
     ];
@@ -38,8 +36,8 @@ class Appointment extends Model
             'status'           => AppointmentStatus::class,
             'type'             => AppointmentType::class,
             'appointment_time' => 'datetime',
-            'weight'           => 'decimal:3',
-            'temperature'      => 'decimal:1',
+            'diagnosis'        => 'array',
+            'vitals'           => 'array',
             'started_at'       => 'datetime',
             'completed_at'     => 'datetime',
         ];

@@ -4,11 +4,12 @@ namespace App\Http\Resources\Patients;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\Appointments\AppointmentResource;
 
-class PatientResource extends JsonResource
+class PatientHistoryResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
+     * Transform the patient with full medical history into an array.
      *
      * @return array<string, mixed>
      */
@@ -27,9 +28,10 @@ class PatientResource extends JsonResource
             'allergies'                    => $this->allergies,
             'surgeries'                    => $this->surgeries,
             'medical_history'              => $this->medical_history,
-            'total_completed_count'        => (int) ($this->total_completed_count ?? 0),
+            'total_completed_count'        => (int) ($this->total_completed_count ?? $this->completed_appointments_count ?? 0),
             'branch_completed_count'       => (int) ($this->branch_completed_count ?? 0),
-            'completed_appointments_count' => (int) ($this->completed_appointments_count ?? $this->total_completed_count ?? 0),
+            'completed_appointments_count' => (int) ($this->completed_appointments_count ?? 0),
+            'appointments'                 => AppointmentResource::collection($this->whenLoaded('appointments')),
             'created_at'                   => $this->created_at?->toIso8601String(),
         ];
     }

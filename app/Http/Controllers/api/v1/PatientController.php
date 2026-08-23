@@ -7,15 +7,19 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Patient;
 use App\Services\PatientService;
+use App\Services\ConsultationService;
 use App\Http\Resources\Patients\PatientResource;
+use App\Http\Resources\Patients\PatientHistoryResource;
 
 class PatientController extends Controller
 {
     private PatientService $patientService;
+    private ConsultationService $consultationService;
 
-    public function __construct(PatientService $patientService)
+    public function __construct(PatientService $patientService, ConsultationService $consultationService)
     {
         $this->patientService = $patientService;
+        $this->consultationService = $consultationService;
     }
 
     /**
@@ -48,28 +52,11 @@ class PatientController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $patient = $this->patientService->show($id);
+        $patient = $this->consultationService->getPatientHistory($id);
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
-                'id'                           => $patient->id,
-                'name'                         => $patient->name,
-                'phone'                        => $patient->phone,
-                'age'                          => $patient->age,
-                'gender'                       => $patient->gender,
-                'medical_history'              => $patient->medical_history,
-                'total_completed_count'        => (int) ($patient->total_completed_count ?? $patient->completed_appointments_count ?? 0),
-                'branch_completed_count'       => (int) ($patient->branch_completed_count ?? 0),
-                'completed_appointments_count' => (int) ($patient->completed_appointments_count ?? 0),
-                'appointments'                 => $patient->appointments->map(fn ($appt) => [
-                    'id'               => $appt->id,
-                    'appointment_time' => $appt->appointment_time,
-                    'type'             => $appt->type,
-                    'status'           => $appt->status,
-                    'branch_name'      => $appt->branch->name ?? null,
-                ]),
-            ],
+            'data'   => new PatientHistoryResource($patient),
         ]);
     }
 
@@ -104,28 +91,12 @@ class PatientController extends Controller
      */
     public function getHistory(string $id): JsonResponse
     {
-        $patient = $this->patientService->show($id);
+        $patient = $this->consultationService->getPatientHistory($id);
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
-                'id'                           => $patient->id,
-                'name'                         => $patient->name,
-                'phone'                        => $patient->phone,
-                'age'                          => $patient->age,
-                'gender'                       => $patient->gender,
-                'medical_history'              => $patient->medical_history,
-                'total_completed_count'        => (int) ($patient->total_completed_count ?? $patient->completed_appointments_count ?? 0),
-                'branch_completed_count'       => (int) ($patient->branch_completed_count ?? 0),
-                'completed_appointments_count' => (int) ($patient->completed_appointments_count ?? 0),
-                'appointments'                 => $patient->appointments->map(fn ($appt) => [
-                    'id'               => $appt->id,
-                    'appointment_time' => $appt->appointment_time,
-                    'type'             => $appt->type,
-                    'status'           => $appt->status,
-                    'branch_name'      => $appt->branch->name ?? null,
-                ]),
-            ],
+            'data'   => new PatientHistoryResource($patient),
         ]);
     }
 }
+

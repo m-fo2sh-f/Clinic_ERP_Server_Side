@@ -9,6 +9,7 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\LiveQueueController;
 use App\Http\Controllers\Api\V1\PatientController;
+use App\Http\Controllers\Api\V1\ConsultationController;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -42,6 +43,7 @@ Route::middleware([
             Route::middleware('role:doctor|clinic_owner')->group(function () {
                 Route::post('live-queues/next', [LiveQueueController::class, 'nextPatient']);
                 Route::get('patients/{id}/history', [PatientController::class, 'getHistory']);
+                Route::post('consultations/complete', [ConsultationController::class, 'complete']);
             });
 
             // 📋 ب. روتات خاصة بالريسبشن والمالك والدكتور (Receptionist, Doctor & Clinic Owner)

@@ -20,9 +20,7 @@ return new class extends Migration
             $table->text('chief_complaint')->nullable();
             $table->text('diagnosis')->nullable();
             $table->text('clinical_examination')->nullable();
-            $table->string('blood_pressure', 20)->nullable();
-            $table->decimal('weight', 5, 2)->nullable();
-            $table->decimal('temperature', 4, 1)->nullable();
+            $table->json('vitals')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
