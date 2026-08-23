@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
 use App\Services\LiveQueueService;
 use App\Models\LiveQueue;
 use App\Http\Resources\LiveQueue\LiveQueueResource;
+use App\Http\Resources\LiveQueue\PublicLiveQueueResource;
 
 class LiveQueueController extends Controller
 {
@@ -49,7 +50,7 @@ class LiveQueueController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => LiveQueueResource::collection($queue)
+            'data'   => PublicLiveQueueResource::collection($queue)
         ], 200);
     }
 

@@ -61,6 +61,34 @@ class PatientController extends Controller
     }
 
     /**
+     * PUT/PATCH /patients/{id} — Update patient demographics and medical background.
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'             => 'nullable|string|max:255',
+            'phone'            => 'nullable|string|max:50',
+            'gender'           => 'nullable|string|max:20',
+            'age'              => 'nullable|integer|min:0|max:150',
+            'date_of_birth'    => 'nullable|date',
+            'blood_group'      => 'nullable|string|max:10',
+            'chronic_diseases' => 'nullable|string|max:1000',
+            'allergies'        => 'nullable|string|max:1000',
+            'surgeries'        => 'nullable|string|max:1000',
+            'medical_history'  => 'nullable|string|max:2000',
+        ]);
+
+        $patient = Patient::findOrFail($id);
+        $patient->update(array_filter($validated, fn ($val) => !is_null($val)));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Patient profile updated successfully',
+            'data'    => new PatientResource($patient),
+        ]);
+    }
+
+    /**
      * GET /patients/search — Auto-complete patient search.
      */
     public function search(Request $request): JsonResponse
@@ -99,4 +127,3 @@ class PatientController extends Controller
         ]);
     }
 }
-
