@@ -9,16 +9,20 @@ use App\Models\Patient;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Services\LiveQueueService;
+use App\Services\PatientService;
 use App\Models\LiveQueue;
 use App\Helpers\ShiftHelper;
+
 
 class AppointmentService 
 {
     private LiveQueueService $liveQueueService;
+    private PatientService $patientService;
 
-    public function __construct(LiveQueueService $liveQueueService)
+    public function __construct(LiveQueueService $liveQueueService, PatientService $patientService)
     {
         $this->liveQueueService = $liveQueueService;
+        $this->patientService = $patientService;
     }
 
     public function getAllAppointmentsForBranch(int|string $branchId, ?string $date = null)
@@ -35,15 +39,7 @@ class AppointmentService
     public function createAppointment(array $data): Appointment
     {
         return DB::transaction(function () use ($data) {
-            if (!empty($data['patient_id'])) {
-                $patientId = $data['patient_id'];
-            } else {
-                $patient = Patient::firstOrCreate(
-                    ['phone' => trim($data['patient']['phone'])],
-                    ['name'  => trim($data['patient']['name'])]
-                );
-                $patientId = $patient->id;
-            }
+            $patientId = $this->patientService->resolvePatient($data);
 
             return Appointment::create([
                 'branch_id'        => $data['branch_id'],
@@ -58,8 +54,9 @@ class AppointmentService
     public function updateAppointment(string $id, array $data): Appointment
     {
         return DB::transaction(function () use ($id, $data) {
-            $appointment = Appointment::with('patient')->findOrFail($id);
-            
+            $appointment = Appointment::lockForUpdate()->with('patient')->findOrFail($id);
+
+            // Update appointment metadata
             $appointment->update(array_filter([
                 'appointment_time' => $data['appointment_time'] ?? null,
                 'type'             => $data['type']             ?? null, 
@@ -67,48 +64,47 @@ class AppointmentService
                 'branch_id'        => $data['branch_id']        ?? null,
             ]));
 
-            if (!empty($data['patient']['phone'])) {
-                $phone = trim($data['patient']['phone']);
-                $name  = !empty($data['patient']['name']) ? trim($data['patient']['name']) : null;
+            $strategy = $data['strategy'] ?? null;
 
+            // Strategy 1: REASSIGN_EXISTING patient
+            if ($strategy === 'REASSIGN_EXISTING' || (!empty($data['patient_id']) && $data['patient_id'] !== $appointment->patient_id)) {
+                $targetPatientId = $data['patient_id'] ?? $this->patientService->resolvePatient($data);
+                $appointment->update(['patient_id' => $targetPatientId]);
+            }
+            // Strategy 2: CREATE_AND_ASSIGN new patient profile (e.g. sibling/family member)
+            elseif ($strategy === 'CREATE_AND_ASSIGN') {
+                $patientPayload = $data['patient'] ?? $data;
+                $newPatient = $this->patientService->createPatient($patientPayload);
+                $appointment->update(['patient_id' => $newPatient->id]);
+            }
+            // Strategy 3: UPDATE_CURRENT patient's demographic details
+            elseif ($strategy === 'UPDATE_CURRENT') {
+                if ($appointment->patient_id && !empty($data['patient'])) {
+                    $this->patientService->updatePatientDetails($appointment->patient_id, $data['patient']);
+                }
+            }
+            // BACKWARD COMPATIBILITY FALLBACK (Strategy omitted)
+            elseif (!empty($data['patient'])) {
                 $currentPatient = $appointment->patient;
-                $existingPatient = Patient::where('phone', $phone)->first();
+                $incomingName  = isset($data['patient']['name']) ? trim($data['patient']['name']) : null;
+                $incomingPhone = isset($data['patient']['phone']) ? trim($data['patient']['phone']) : null;
 
-                if ($existingPatient) {
-                    $appointment->update(['patient_id' => $existingPatient->id]);
-                    if ($name && $existingPatient->name !== $name) {
-                        $existingPatient->update(['name' => $name]);
+                $isIdentityChanged = false;
+                if ($currentPatient) {
+                    if ($incomingName !== null && $incomingName !== $currentPatient->name) {
+                        $isIdentityChanged = true;
+                    }
+                    if ($incomingPhone !== null && $incomingPhone !== $currentPatient->phone) {
+                        $isIdentityChanged = true;
                     }
                 } else {
-                    $hasOtherAppointments = $currentPatient 
-                        ? Appointment::where('patient_id', $currentPatient->id)
-                            ->where('id', '!=', $appointment->id)
-                            ->exists()
-                        : false;
-
-                    if ($hasOtherAppointments) {
-                        $newPatient = Patient::create([
-                            'phone' => $phone,
-                            'name'  => $name ?? 'مريض جديد',
-                        ]);
-                        $appointment->update(['patient_id' => $newPatient->id]);
-                    } else {
-                        if ($currentPatient) {
-                            $currentPatient->update([
-                                'phone' => $phone,
-                                'name'  => $name ?? $currentPatient->name,
-                            ]);
-                        } else {
-                            $newPatient = Patient::create([
-                                'phone' => $phone,
-                                'name'  => $name ?? 'مريض جديد',
-                            ]);
-                            $appointment->update(['patient_id' => $newPatient->id]);
-                        }
-                    }
+                    $isIdentityChanged = true;
                 }
-            } elseif (!empty($data['patient_id']) && $data['patient_id'] !== $appointment->patient_id) {
-                $appointment->update(['patient_id' => $data['patient_id']]);
+
+                if ($isIdentityChanged) {
+                    $targetPatientId = $this->patientService->resolvePatient($data);
+                    $appointment->update(['patient_id' => $targetPatientId]);
+                }
             }
 
             $appointment->load('patient');
@@ -118,8 +114,21 @@ class AppointmentService
 
     public function destroyAppointment(string $id): bool
     {
-        $appointment = Appointment::findOrFail($id);
-        return (bool) $appointment->delete();
+        return DB::transaction(function () use ($id) {
+            $appointment = Appointment::lockForUpdate()->findOrFail($id);
+
+            $currentStatus = $appointment->status instanceof AppointmentStatus 
+                ? $appointment->status->value 
+                : $appointment->status;
+
+            if ($currentStatus === AppointmentStatus::COMPLETED->value) {
+                throw new \InvalidArgumentException('لا يمكن حذف موعد مكتمل بالفعل.');
+            }
+
+            LiveQueue::where('appointment_id', $appointment->id)->delete();
+
+            return (bool) $appointment->delete();
+        });
     }
 
     /**
@@ -160,17 +169,8 @@ class AppointmentService
     public function checkInWalkIn(array $data, string $branchId): LiveQueue
     {
         return DB::transaction(function () use ($data, $branchId) {
-            if (!empty($data['patient_id'])) {
-                $patientId = $data['patient_id'];
-            } else {
-                $patient = Patient::firstOrCreate(
-                    ['phone' => trim($data['patient']['phone'])],
-                    ['name'  => trim($data['patient']['name'])]
-                );
-                $patientId = $patient->id;
-            }
+            $patientId = $this->patientService->resolvePatient($data);
 
-            // 1. Create permanent Appointment SSOT record for Walk-In
             $appointment = Appointment::create([
                 'branch_id'        => $branchId,
                 'patient_id'       => $patientId,

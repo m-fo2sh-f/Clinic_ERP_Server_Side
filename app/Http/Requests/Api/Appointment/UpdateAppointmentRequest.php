@@ -24,18 +24,22 @@ class UpdateAppointmentRequest extends FormRequest
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
-{
-    return [
-        'appointment_time' => 'sometimes|required|date_format:Y-m-d H:i:s',
-        'branch_id'        => 'sometimes|required|exists:branches,id',
-        'type'             => ['sometimes', 'required', Rule::enum(AppointmentType::class)],
-        'status'           => ['sometimes', 'required', Rule::enum(AppointmentStatus::class)],
-        'patient_id'       => 'nullable|exists:patients,id',
-        'patient'          => 'nullable|array',
-        'patient.name'     => 'nullable|string|max:255',
-        'patient.phone'    => 'nullable|string|max:255',
-    ];
-}
+    {
+        return [
+            'appointment_time'       => 'sometimes|required|date_format:Y-m-d H:i:s',
+            'branch_id'              => 'sometimes|required|exists:branches,id',
+            'type'                   => ['sometimes', 'required', Rule::enum(AppointmentType::class)],
+            'status'                 => ['sometimes', 'required', Rule::enum(AppointmentStatus::class)],
+            'strategy'               => 'nullable|string|in:UPDATE_CURRENT,REASSIGN_EXISTING,CREATE_AND_ASSIGN',
+            'patient_id'             => 'nullable|exists:patients,id',
+            'patient'                => 'nullable|array',
+            'patient.name'           => 'nullable|string|max:255',
+            'patient.phone'          => 'nullable|string|max:255',
+            'patient.age'            => 'nullable|integer|min:0|max:150',
+            'patient.gender'         => 'nullable|in:male,female',
+            'patient.medical_number' => 'nullable|string|max:100',
+        ];
+    }
 
      public function messages(): array
     {

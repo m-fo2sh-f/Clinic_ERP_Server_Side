@@ -37,7 +37,7 @@ Route::middleware([
 
         // 🎯 الروتات المحمية حسب الـ Roles
         $registerProtectedApiRoutes = function () {
-
+            Broadcast::routes(['middleware' => ['auth:sanctum']]);
             // 🩺 أ. روتات خاصة بالدكتور ومالك العيادة فقط (Doctor & Clinic Owner Only)
             Route::middleware('role:doctor|clinic_owner')->group(function () {
                 Route::post('live-queues/next', [LiveQueueController::class, 'nextPatient']);
@@ -58,6 +58,7 @@ Route::middleware([
 
                 // المرضى وقائمة الأدلة
                 Route::get('patients/search', [PatientController::class, 'search'])->middleware('throttle:60,1');
+                Route::get('patients/{id}/summary', [PatientController::class, 'summary']);
                 Route::apiResource('patients', PatientController::class);
             });
         };

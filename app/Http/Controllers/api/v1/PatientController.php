@@ -104,28 +104,42 @@ class PatientController extends Controller
     }
 
     /**
-     * GET /patients/search — Auto-complete patient search.
+     * GET /patients/search — Auto-complete patient search by name, phone, or MRN.
      */
     public function search(Request $request): JsonResponse
     {
         $query = trim($request->query('q', ''));
 
-        if (mb_strlen($query) < 2) {
-            return response()->json(['data' => []]);
+        if (mb_strlen($query) < 1) {
+            return response()->json(['status' => 'success', 'data' => []]);
         }
 
         $patients = Patient::query()
             ->where(function ($q) use ($query) {
                 $q->where('name', 'LIKE', "%{$query}%")
-                ->orWhere('phone', 'LIKE', "%{$query}%");
+                  ->orWhere('phone', 'LIKE', "%{$query}%")
+                  ->orWhere('medical_number', 'LIKE', "%{$query}%");
             })
-            ->select(['id', 'name', 'phone'])
-            ->limit(10)
+            ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender'])
+            ->limit(15)
             ->get();
 
         return response()->json([
             'status' => 'success',
             'data'   => $patients
+        ]);
+    }
+
+    /**
+     * GET /patients/{id}/summary — Quick patient preview context for modal UI.
+     */
+    public function summary(string $id): JsonResponse
+    {
+        $summary = $this->patientService->getPatientSummary($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $summary,
         ]);
     }
 
