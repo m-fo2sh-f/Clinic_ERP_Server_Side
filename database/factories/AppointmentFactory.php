@@ -27,10 +27,10 @@ class AppointmentFactory extends Factory
         return [
             // id is automatically generated as UUID via HasUuids trait
             // tenant_id will be automatically populated via stancl/tenancy context
-            // branch_id and patient_id should be provided in Seeder
+            'patient_id' => \App\Models\Patient::factory(),
             'appointment_time' => fake()->dateTimeBetween('now', '+1 month'),
             'type' => fake()->randomElement(['check_up','follow_up','consultation']),   
-            'status' => fake()->randomElement(['Confirmed', 'Checked-in', 'Canceled', 'No-Show', 'Completed']),
+            'status' => fake()->randomElement(\App\Enums\AppointmentStatus::values()),
         ];
     }
 }

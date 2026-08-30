@@ -33,7 +33,7 @@ class PatientFactory extends Factory
             'name' => fake('ar_EG')->name(),
             'phone' => fake()->randomElement($prefixes) . fake()->numerify('########'),
             'age' => fake()->numberBetween(1, 90),
-            'gender' => fake()->randomElement(['Male', 'Female']),
+            'gender' => fake()->randomElement(['male', 'female']),
             'medical_history' => fake()->optional(0.7)->sentence(6),
         ];
     }
