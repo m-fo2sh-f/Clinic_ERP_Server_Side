@@ -247,4 +247,53 @@ class AppointmentArchitectureTest extends TestCase
         $this->assertDatabaseMissing('appointments', ['id' => $appointment->id]);
         $this->assertDatabaseMissing('live_queues', ['id' => $queueItem->id]);
     }
+
+    /** @test */
+    public function test_creates_appointment_with_doctor_id_and_filters_queue_per_doctor(): void
+    {
+        $doctor1 = \App\Models\User::factory()->create(['name' => 'Dr. Ahmed Ali']);
+        $doctor2 = \App\Models\User::factory()->create(['name' => 'Dr. Sara Mahmoud']);
+
+        // Doctor 1 Appointment & Check-In
+        $appt1 = $this->appointmentService->createAppointment([
+            'branch_id'        => $this->branch->id,
+            'doctor_id'        => $doctor1->id,
+            'appointment_time' => now()->addHour()->format('Y-m-d H:i:s'),
+            'type'             => 'check_up',
+            'patient'          => [
+                'name'  => 'Patient For Dr Ahmed',
+                'phone' => '01011112222',
+            ]
+        ]);
+        $queue1 = $this->appointmentService->checkInAppointment($appt1->id);
+
+        // Doctor 2 Appointment & Check-In
+        $appt2 = $this->appointmentService->createAppointment([
+            'branch_id'        => $this->branch->id,
+            'doctor_id'        => $doctor2->id,
+            'appointment_time' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            'type'             => 'check_up',
+            'patient'          => [
+                'name'  => 'Patient For Dr Sara',
+                'phone' => '01033334444',
+            ]
+        ]);
+        $queue2 = $this->appointmentService->checkInAppointment($appt2->id);
+
+        $liveQueueService = app(\App\Services\LiveQueueService::class);
+
+        // Queue for Dr. Ahmed
+        $doc1Queue = $liveQueueService->getQueueForBranch($this->branch->id, $doctor1->id);
+        $this->assertCount(1, $doc1Queue);
+        $this->assertEquals($queue1->id, $doc1Queue->first()->id);
+
+        // Queue for Dr. Sara
+        $doc2Queue = $liveQueueService->getQueueForBranch($this->branch->id, $doctor2->id);
+        $this->assertCount(1, $doc2Queue);
+        $this->assertEquals($queue2->id, $doc2Queue->first()->id);
+
+        // All Queue (Unfiltered for receptionist)
+        $allQueue = $liveQueueService->getQueueForBranch($this->branch->id, null);
+        $this->assertCount(2, $allQueue);
+    }
 }

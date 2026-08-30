@@ -25,11 +25,14 @@ class LiveQueueController extends Controller
     {
         $request->validate([
             "branch_id" => "required|exists:branches,id",
+            "doctor_id" => "nullable|exists:users,id",
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
-        $queue = $this->liveQueueService->getQueueForBranch($request->branch_id);
+        $doctorId = $request->query('doctor_id');
+
+        $queue = $this->liveQueueService->getQueueForBranch($request->branch_id, $doctorId);
 
         return response()->json([
             'status' => 'success',
@@ -44,9 +47,12 @@ class LiveQueueController extends Controller
     {
         $request->validate([
             "branch_id" => "required|exists:branches,id",
+            "doctor_id" => "nullable|exists:users,id",
         ]);
 
-        $queue = $this->liveQueueService->getQueueForBranch($request->branch_id);
+        $doctorId = $request->query('doctor_id');
+
+        $queue = $this->liveQueueService->getQueueForBranch($request->branch_id, $doctorId);
 
         return response()->json([
             'status' => 'success',
@@ -112,11 +118,16 @@ class LiveQueueController extends Controller
     {
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
+            'doctor_id' => 'nullable|exists:users,id',
+            'room_name' => 'nullable|string',
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
-        $nextPatient = $this->liveQueueService->callNextPatient($request->branch_id);
+        $doctorId = $request->query('doctor_id') ?? $request->user()->id;
+        $roomName = $request->query('room_name') ?? 'Examination Room';
+
+        $nextPatient = $this->liveQueueService->callNextPatient($request->branch_id, $doctorId, $roomName);
 
         if (!$nextPatient) {
             return response()->json([

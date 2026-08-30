@@ -18,16 +18,20 @@ class LiveQueueService
     /**
      * جلب الطابور الحي للفرع بناءً على شفت اليوم الطبي الشغال حالياً
      */
-    public function getQueueForBranch(string $branchId)
+    public function getQueueForBranch(string $branchId, int|string|null $doctorId = null)
     {
         [$startTime, $endTime] = ShiftHelper::getShiftWindow();
 
-        return LiveQueue::where('branch_id', $branchId)
-            ->with(['patient', 'appointment'])
+        $query = LiveQueue::where('branch_id', $branchId)
+            ->with(['patient', 'doctor', 'appointment'])
             ->whereBetween('created_at', [$startTime, $endTime])
-            ->whereIn('status', LiveQueueStatus::activeStatuses())
-            ->orderBy('queue_no', 'asc')    
-            ->get();
+            ->whereIn('status', LiveQueueStatus::activeStatuses());
+
+        if (!empty($doctorId)) {
+            $query->where('doctor_id', $doctorId);
+        }
+
+        return $query->orderBy('queue_no', 'asc')->get();
     }
 
     /**

@@ -28,6 +28,7 @@ class StoreAppointmentRequest extends FormRequest
         return [
             'appointment_time' => 'required|date_format:Y-m-d H:i:s',
             'branch_id'        => 'required|exists:branches,id',
+            'doctor_id'        => 'nullable|exists:users,id',
             'type'             => ['required', Rule::enum(AppointmentType::class)],
             'status'           => ['required', Rule::enum(AppointmentStatus::class)],
             'patient_id'       => 'nullable|exists:patients,id',

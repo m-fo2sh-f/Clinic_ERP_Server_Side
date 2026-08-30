@@ -28,6 +28,7 @@ class UpdateAppointmentRequest extends FormRequest
         return [
             'appointment_time'       => 'sometimes|required|date_format:Y-m-d H:i:s',
             'branch_id'              => 'sometimes|required|exists:branches,id',
+            'doctor_id'              => 'nullable|exists:users,id',
             'type'                   => ['sometimes', 'required', Rule::enum(AppointmentType::class)],
             'status'                 => ['sometimes', 'required', Rule::enum(AppointmentStatus::class)],
             'strategy'               => 'nullable|string|in:UPDATE_CURRENT,REASSIGN_EXISTING,CREATE_AND_ASSIGN',

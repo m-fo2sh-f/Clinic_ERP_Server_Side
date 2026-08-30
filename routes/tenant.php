@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\LiveQueueController;
 use App\Http\Controllers\Api\V1\PatientController;
 use App\Http\Controllers\Api\V1\ConsultationController;
+use App\Http\Controllers\Api\V1\BranchController;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -47,6 +48,9 @@ Route::middleware([
 
             // 📋 ب. روتات خاصة بالريسبشن والمالك والدكتور (Receptionist, Doctor & Clinic Owner)
             Route::middleware('role:receptionist|doctor|clinic_owner')->group(function () {
+                // أطباء الفرع
+                Route::get('branches/{branchId}/doctors', [BranchController::class, 'doctors']);
+
                 // الحجوزات والتسجيل
                 Route::apiResource('appointments', AppointmentController::class);
                 Route::post('appointments/{id}/check-in', [AppointmentController::class, 'checkIn']);

@@ -25,12 +25,17 @@ class AppointmentController extends Controller
     {
         $request->validate([
             "branch_id" => "required|exists:branches,id",
-            "date"      => "nullable|date_format:Y-m-d" 
+            "date"      => "nullable|date_format:Y-m-d",
+            "doctor_id" => "nullable|exists:users,id",
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
-        $appointments = $this->appointmentService->getAllAppointmentsForBranch($request->branch_id, $request->date);
+        $appointments = $this->appointmentService->getAllAppointmentsForBranch(
+            $request->branch_id,
+            $request->date,
+            $request->query('doctor_id')
+        );
 
         return response()->json([
             "status" => "success",
@@ -44,7 +49,7 @@ class AppointmentController extends Controller
 
         $appointment = $this->appointmentService->createAppointment($request->validated());
 
-        $appointment->load('patient');
+        $appointment->load(['patient', 'doctor', 'branch']);
 
         return response()->json([
             "status" => "success",
@@ -62,6 +67,8 @@ class AppointmentController extends Controller
         }
 
         $appointment = $this->appointmentService->updateAppointment($id, $request->validated());
+
+        $appointment->load(['patient', 'doctor', 'branch']);
 
         return response()->json([
             "status" => "success",

@@ -16,12 +16,17 @@ class LiveQueueResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            "id"           => $this->id,
-            "queue_no"     => $this->queue_no,
-            "status"       => $this->status,
+            "id"             => $this->id,
+            "queue_no"       => $this->queue_no,
+            "status"         => $this->status,
             "checked_in_at"  => $this->checked_in_at,
             "appointment_id" => $this->appointment_id,
-            "patient" => new PatientResource($this->whenLoaded('patient')),
+            "doctor_id"      => $this->doctor_id,
+            "patient"        => new PatientResource($this->whenLoaded('patient')),
+            "doctor"         => $this->whenLoaded('doctor', fn () => [
+                'id'   => $this->doctor->id,
+                'name' => $this->doctor->name,
+            ]),
         ];
     }
 }

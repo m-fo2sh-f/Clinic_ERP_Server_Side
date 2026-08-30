@@ -25,15 +25,21 @@ class AppointmentService
         $this->patientService = $patientService;
     }
 
-    public function getAllAppointmentsForBranch(int|string $branchId, ?string $date = null)
+    public function getAllAppointmentsForBranch(int|string $branchId, ?string $date = null, int|string|null $doctorId = null)
     {
         [$startTime, $endTime] = ShiftHelper::getShiftWindow($date);
 
-        return Appointment::where('branch_id', $branchId)
-            ->with('patient')
-            ->whereBetween('appointment_time', [$startTime, $endTime])
-            ->orderBy('appointment_time', 'asc')
-            ->get();
+        $query = Appointment::where('branch_id', $branchId)
+            ->with(['patient', 'doctor', 'branch'])
+            ->whereBetween('appointment_time', [$startTime, $endTime]);
+
+        if (!empty($doctorId)) {
+            $query->where(function ($q) use ($doctorId) {
+                $q->where('doctor_id', $doctorId)->orWhereNull('doctor_id');
+            });
+        }
+
+        return $query->orderBy('appointment_time', 'asc')->get();
     }
 
     public function createAppointment(array $data): Appointment
@@ -44,6 +50,7 @@ class AppointmentService
             return Appointment::create([
                 'branch_id'        => $data['branch_id'],
                 'patient_id'       => $patientId,
+                'doctor_id'        => $data['doctor_id'] ?? null,
                 'appointment_time' => $data['appointment_time'],
                 'type'             => $data['type'],
                 'status'           => $data['status'] ?? AppointmentStatus::BOOKING->value,
@@ -62,7 +69,8 @@ class AppointmentService
                 'type'             => $data['type']             ?? null, 
                 'status'           => $data['status']           ?? null,
                 'branch_id'        => $data['branch_id']        ?? null,
-            ]));
+                'doctor_id'        => $data['doctor_id']        ?? null,
+            ], fn($v) => !is_null($v)));
 
             $strategy = $data['strategy'] ?? null;
 
