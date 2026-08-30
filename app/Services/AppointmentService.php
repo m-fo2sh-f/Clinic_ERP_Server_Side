@@ -159,6 +159,7 @@ class AppointmentService
             return $this->liveQueueService->createNewPatientInQueue([
                 'patient_id'     => $appointment->patient_id,
                 'appointment_id' => $appointment->id,
+                'doctor_id'      => $appointment->doctor_id,
             ], $appointment->branch_id);
         });
     }
@@ -170,10 +171,12 @@ class AppointmentService
     {
         return DB::transaction(function () use ($data, $branchId) {
             $patientId = $this->patientService->resolvePatient($data);
+            $doctorId  = $data['doctor_id'] ?? null;
 
             $appointment = Appointment::create([
                 'branch_id'        => $branchId,
                 'patient_id'       => $patientId,
+                'doctor_id'        => $doctorId,
                 'appointment_time' => now(),
                 'type'             => $data['type'] ?? 'check_up',
                 'status'           => AppointmentStatus::CHECKED_IN->value,
@@ -183,6 +186,7 @@ class AppointmentService
             return $this->liveQueueService->createNewPatientInQueue([
                 'patient_id'     => $patientId,
                 'appointment_id' => $appointment->id,
+                'doctor_id'      => $doctorId,
             ], $branchId);
         });
     }

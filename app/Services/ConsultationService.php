@@ -88,6 +88,7 @@ class ConsultationService
 
                     $items[] = [
                         'id'              => Str::uuid()->toString(),
+                        'tenant_id'       => $prescription->tenant_id ?? (function_exists('tenant') ? tenant('id') : null),
                         'prescription_id' => $prescription->id,
                         'drug_id'         => $med['drug_id'] ?? null,
                         'drug_name'       => $med['name'],

@@ -89,30 +89,29 @@ class PatientService
 
     /**
      * Concurrency-safe automatic MRN sequence generator scoped per tenant.
+     * @return array{mrn_sequence: int, medical_number: string}
      */
-    public function generateNextMedicalNumber(?string $tenantId = null): string
+    public function generateNextMedicalNumber(?string $tenantId = null): array
     {
         $tenantId = $tenantId ?? (function_exists('tenant') ? tenant('id') : null);
 
         return DB::transaction(function () use ($tenantId) {
-            $query = Patient::query()->whereNotNull('medical_number')->where('medical_number', 'LIKE', 'MRN-%');
+        $query = Patient::query();
 
-            if (!empty($tenantId)) {
-                $query->where('tenant_id', $tenantId);
-            }
+        if (!empty($tenantId)) {
+            $query->where('tenant_id', $tenantId);
+        }
 
-            $latestPatient = $query->orderByRaw('LENGTH(medical_number) DESC')
-                ->orderBy('medical_number', 'desc')
-                ->lockForUpdate()
-                ->first();
+        // 🎯 استعلام فوري يعتمد على الفهرس idx_patients_tenant_mrn_seq بدون فحص نصوص
+        $maxSequence = $query->lockForUpdate()->max('mrn_sequence') ?? 10000;
+        $nextSequence = $maxSequence + 1;
+        $mrnCode = 'MRN-' . str_pad($nextSequence, 5, '0', STR_PAD_LEFT);
 
-            $nextNum = 10001;
-            if ($latestPatient && preg_match('/MRN-(\d+)/i', $latestPatient->medical_number, $matches)) {
-                $nextNum = (int)$matches[1] + 1;
-            }
-
-            return 'MRN-' . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
-        });
+        return [
+            'mrn_sequence'   => $nextSequence,
+            'medical_number' => $mrnCode,
+        ];
+    });
     }
 
     /**
@@ -121,14 +120,13 @@ class PatientService
     public function createPatient(array $data): Patient
     {
         return DB::transaction(function () use ($data) {
-            $medicalNumber = !empty($data['medical_number'])
-                ? trim($data['medical_number'])
-                : $this->generateNextMedicalNumber();
+            $mrnData = $this->generateNextMedicalNumber();
 
             return Patient::create([
-                'medical_number'   => $medicalNumber,
+                'mrn_sequence'     => $mrnData['mrn_sequence'],
+                'medical_number'   => !empty($data['medical_number']) ? trim($data['medical_number']) : $mrnData['medical_number'],
                 'name'             => trim($data['name'] ?? 'مريض جديد'),
-                'phone'            => trim($data['phone'] ?? ''),
+                'phone'            => preg_replace('/[^\d]/', '', (string)($data['phone'] ?? '')),
                 'age'              => isset($data['age']) ? (int)$data['age'] : null,
                 'gender'           => $data['gender'] ?? null,
                 'blood_group'      => $data['blood_group'] ?? null,

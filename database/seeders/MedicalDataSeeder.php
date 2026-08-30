@@ -260,6 +260,7 @@ class MedicalDataSeeder extends Seeder
                         $drug2 = $createdDrugs[1] ?? null;
 
                         PrescriptionItem::create([
+                            'tenant_id' => $tenant->id,
                             'prescription_id' => $prescription->id,
                             'drug_id' => $drug1 ? $drug1->id : null,
                             'drug_name' => $drug1 ? $drug1->trade_name : 'Panadol Extra 500mg',
@@ -271,6 +272,7 @@ class MedicalDataSeeder extends Seeder
                         ]);
 
                         PrescriptionItem::create([
+                            'tenant_id' => $tenant->id,
                             'prescription_id' => $prescription->id,
                             'drug_id' => $drug2 ? $drug2->id : null,
                             'drug_name' => $drug2 ? $drug2->trade_name : 'Augmentin 1g',

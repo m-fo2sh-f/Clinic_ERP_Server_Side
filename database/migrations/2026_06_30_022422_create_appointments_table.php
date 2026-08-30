@@ -26,7 +26,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-
+            $table->index(['tenant_id', 'branch_id', 'doctor_id', 'appointment_time'], 'idx_appts_tenant_branch_doc_time');
             $table->index(['tenant_id', 'branch_id', 'status', 'appointment_time'], 'idx_appts_tenant_branch_status_time');
             $table->index(['tenant_id', 'doctor_id', 'appointment_time'], 'idx_appts_tenant_doctor_time');
             $table->index(['tenant_id', 'patient_id', 'status'], 'idx_appts_tenant_patient_status');

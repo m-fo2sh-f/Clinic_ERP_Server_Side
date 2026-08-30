@@ -38,19 +38,27 @@ class LiveQueueService
         return DB::transaction(function () use ($data, $branchId) {
             [$startTime, $endTime] = ShiftHelper::getShiftWindow();
             $shiftDate = Carbon::parse($startTime)->toDateString();
+            $doctorId  = $data['doctor_id'] ?? null;
 
-            // Lock parent branch row to prevent MySQL InnoDB gap locks & deadlocks
+            // قفل صف الفرع لمنع الـ Deadlocks
             DB::table('branches')->where('id', $branchId)->lockForUpdate()->get();
 
-            $maxQueueNo = LiveQueue::where('branch_id', $branchId)
+            // 🎯 حساب رقم الدور الخاص بالطبيب داخل شفت اليوم (لكل دكتور طابوره المستقل)
+            $maxQueueQuery = LiveQueue::where('branch_id', $branchId)
                 ->where(function ($q) use ($shiftDate, $startTime, $endTime) {
                     $q->where('shift_date', $shiftDate)
                       ->orWhereBetween('created_at', [$startTime, $endTime]);
-                })
-                ->max('queue_no') ?? 0;
+                });
+
+            if ($doctorId) {
+                $maxQueueQuery->where('doctor_id', $doctorId);
+            }
+
+            $maxQueueNo = $maxQueueQuery->max('queue_no') ?? 0;
 
             $queueItem = LiveQueue::create([
                 'branch_id'      => $branchId,
+                'doctor_id'      => $doctorId,
                 'shift_date'     => $shiftDate,
                 'patient_id'     => $data['patient_id'],
                 'appointment_id' => $data['appointment_id'] ?? null,
@@ -111,17 +119,21 @@ class LiveQueueService
     /**
      * استدعاء المريض التالي للكشف
      */
-    public function callNextPatient(string $branchId): ?LiveQueue
+    public function callNextPatient(string $branchId, ?int $doctorId = null, ?string $roomName = null): ?LiveQueue
     {
-        return DB::transaction(function () use ($branchId) {
+        return DB::transaction(function () use ($branchId, $doctorId, $roomName) {
             [$startTime, $endTime] = ShiftHelper::getShiftWindow();
 
-            // 1. إنهاء كشف المريض الحالي (إن وجد) وتحديث الحجز
-            $currentExamining = LiveQueue::where('branch_id', $branchId)
+            // 1. إنهاء كشف المريض السابق لهذا الطبيب تحديداً
+            $examiningQuery = LiveQueue::where('branch_id', $branchId)
                 ->whereBetween('created_at', [$startTime, $endTime])
-                ->where('status', LiveQueueStatus::UNDER_EXAMINATION->value)
-                ->lockForUpdate()
-                ->first();
+                ->where('status', LiveQueueStatus::UNDER_EXAMINATION->value);
+
+            if ($doctorId) {
+                $examiningQuery->where('doctor_id', $doctorId);
+            }
+
+            $currentExamining = $examiningQuery->lockForUpdate()->first();
 
             if ($currentExamining) {
                 $currentExamining->update(['status' => LiveQueueStatus::COMPLETED->value]);
@@ -132,11 +144,18 @@ class LiveQueueService
                 }
             }
 
-            // 2. جلب وتثبيت المريض التالي (Checked-In / Waiting)
-            $nextPatient = LiveQueue::where('branch_id', $branchId)
+            // 2. جلب المريض التالي الخاص بهذا الطبيب (أو من الطابور العام إذا لم يكن محدداً)
+            $nextPatientQuery = LiveQueue::where('branch_id', $branchId)
                 ->whereBetween('created_at', [$startTime, $endTime])
-                ->whereIn('status', [LiveQueueStatus::CHECKED_IN->value, LiveQueueStatus::WAITING->value])
-                ->orderBy('queue_no', 'asc')
+                ->whereIn('status', [LiveQueueStatus::CHECKED_IN->value, LiveQueueStatus::WAITING->value]);
+
+            if ($doctorId) {
+                $nextPatientQuery->where(function ($q) use ($doctorId) {
+                    $q->where('doctor_id', $doctorId)->orWhereNull('doctor_id');
+                });
+            }
+
+            $nextPatient = $nextPatientQuery->orderBy('queue_no', 'asc')
                 ->lockForUpdate()
                 ->first();
 
@@ -151,24 +170,30 @@ class LiveQueueService
                 return null;
             }
 
-            // 3. تحويل حالة المريض الجديد إلى كشف في الجدولين
-            $nextPatient->update(['status' => LiveQueueStatus::UNDER_EXAMINATION->value]);
+            // 3. تحويل الحالة إلى تحت الكشف وتعيين الطبيب
+            $nextPatient->update([
+                'status'    => LiveQueueStatus::UNDER_EXAMINATION->value,
+                'doctor_id' => $doctorId ?? $nextPatient->doctor_id,
+            ]);
 
             if ($nextPatient->appointment_id) {
-                Appointment::where('id', $nextPatient->appointment_id)
-                    ->update(['status' => AppointmentStatus::UNDER_EXAMINATION->value]);
+                Appointment::where('id', $nextPatient->appointment_id)->update([
+                    'status'    => AppointmentStatus::UNDER_EXAMINATION->value,
+                    'doctor_id' => $doctorId ?? $nextPatient->doctor_id,
+                ]);
             }
 
             $nextPatient->load(['patient', 'appointment']);
 
-            // 4. إطلاق الأحداث فور نجاح الترانزاكشن
-            DB::afterCommit(function () use ($branchId, $nextPatient) {
+            // 4. إطلاق البث للشاشات بالبيانات الحقيقية للطبيب والغرفة
+            DB::afterCommit(function () use ($branchId, $nextPatient, $roomName) {
                 try {
+                    $doctorUser = auth()->user();
                     event(new NextPatientCalled($branchId, [
                         'queue_no'     => $nextPatient->queue_no,
                         'patient_name' => $nextPatient->patient->name ?? 'Unknown',
-                        'doctor_name'  => 'Dr. Ahmed',
-                        'room_name'    => 'Room 1',
+                        'doctor_name'  => $doctorUser?->name ?? 'Doctor',
+                        'room_name'    => $roomName ?? 'Examination Room',
                     ]));
                 } catch (\Throwable $e) {
                     logger()->warning('WebSocket NextPatientCalled broadcast failed: ' . $e->getMessage());
