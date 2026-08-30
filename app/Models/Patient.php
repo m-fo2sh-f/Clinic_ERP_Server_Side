@@ -25,6 +25,8 @@ class Patient extends Model
         'allergies',
         'surgeries',
         'medical_history',
+        'mrn_sequence',
+
     ];
 
     protected function casts(): array
