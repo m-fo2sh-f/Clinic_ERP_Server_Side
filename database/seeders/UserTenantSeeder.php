@@ -27,10 +27,16 @@ class UserTenantSeeder extends Seeder
             $tenant1 = Tenant::firstOrCreate(['id' => 'tenant-1']);
             $tenant1->domains()->firstOrCreate(['domain' => 'clinic1.my-saas.test']);
 
-            $tenant1->run(function () use ($universalPassword) {
-                // Ensure Roles
-                $doctorRole    = Role::firstOrCreate(['name' => 'doctor']);
-                $receptionRole = Role::firstOrCreate(['name' => 'receptionist']);
+            $tenant1->run(function () use ($tenant1, $universalPassword) {
+                // ضبط معزل الفرق لصلاحيات التينانت 1
+                setPermissionsTeamId($tenant1->id);
+
+                // Ensure Roles exist for both web and sanctum guards
+                $doctorRole    = Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
+                Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'sanctum']);
+
+                $receptionRole = Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+                Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'sanctum']);
 
                 // Branch: الفرع الرئيسي
                 $mainBranch = Branch::firstOrCreate(
@@ -43,9 +49,11 @@ class UserTenantSeeder extends Seeder
                     ['email' => 'dr.ahmed@tenant1.com'],
                     [
                         'name' => 'د. أحمد علي',
+                        'tenant_id' => $tenant1->id,
                         'password' => $universalPassword,
                     ]
                 );
+                setPermissionsTeamId($tenant1->id);
                 $drAhmed->syncRoles([$doctorRole]);
                 $drAhmed->branches()->syncWithoutDetaching([$mainBranch->id]);
 
@@ -54,9 +62,11 @@ class UserTenantSeeder extends Seeder
                     ['email' => 'dr.sara@tenant1.com'],
                     [
                         'name' => 'د. سارة محمود',
+                        'tenant_id' => $tenant1->id,
                         'password' => $universalPassword,
                     ]
                 );
+                setPermissionsTeamId($tenant1->id);
                 $drSara->syncRoles([$doctorRole]);
                 $drSara->branches()->syncWithoutDetaching([$mainBranch->id]);
 
@@ -65,24 +75,32 @@ class UserTenantSeeder extends Seeder
                     ['email' => 'reception@tenant1.com'],
                     [
                         'name' => 'استقبال الفرع الرئيسي',
+                        'tenant_id' => $tenant1->id,
                         'password' => $universalPassword,
                     ]
                 );
+                setPermissionsTeamId($tenant1->id);
                 $receptionTenant1->syncRoles([$receptionRole]);
                 $receptionTenant1->branches()->syncWithoutDetaching([$mainBranch->id]);
             });
 
             // =========================================================================
             // 2. TENANT 2: مجموعة عيادات الأمل الطبية (tenant-2)
-            // Multi-Branch with 1 Shared Doctor & Dedicated Receptionists
+            // Multi-Branch: Each branch has its dedicated Doctor and Receptionist
             // =========================================================================
             $tenant2 = Tenant::firstOrCreate(['id' => 'tenant-2']);
             $tenant2->domains()->firstOrCreate(['domain' => 'clinic2.my-saas.test']);
 
-            $tenant2->run(function () use ($universalPassword) {
-                // Ensure Roles
-                $doctorRole    = Role::firstOrCreate(['name' => 'doctor']);
-                $receptionRole = Role::firstOrCreate(['name' => 'receptionist']);
+            $tenant2->run(function () use ($tenant2, $universalPassword) {
+                // ضبط معزل الفرق لصلاحيات التينانت 2
+                setPermissionsTeamId($tenant2->id);
+
+                // Ensure Roles exist for both web and sanctum guards
+                $doctorRole    = Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
+                Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'sanctum']);
+
+                $receptionRole = Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+                Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'sanctum']);
 
                 // Branch A: فرع مدينة نصر
                 $branchNasr = Branch::firstOrCreate(
@@ -96,38 +114,59 @@ class UserTenantSeeder extends Seeder
                     ['address' => 'التجمع الخامس - شارع التسعين']
                 );
 
-                // 1. Shared Doctor: د. طارق خليل (Assigned to Both Branches)
+                // --- فرع مدينة نصر ---
+                // Doctor A: د. طارق خليل
                 $drTarek = User::updateOrCreate(
                     ['email' => 'dr.tarek@tenant2.com'],
                     [
                         'name' => 'د. طارق خليل',
+                        'tenant_id' => $tenant2->id,
                         'password' => $universalPassword,
                     ]
                 );
+                setPermissionsTeamId($tenant2->id);
                 $drTarek->syncRoles([$doctorRole]);
-                $drTarek->branches()->syncWithoutDetaching([$branchNasr->id, $branchTagamoa->id]);
+                $drTarek->branches()->sync([$branchNasr->id]);
 
-                // 2. Receptionist Branch A: استقبال فرع مدينة نصر
+                // Receptionist A: استقبال فرع مدينة نصر
                 $receptionNasr = User::updateOrCreate(
                     ['email' => 'reception.nasr@tenant2.com'],
                     [
                         'name' => 'استقبال فرع مدينة نصر',
+                        'tenant_id' => $tenant2->id,
                         'password' => $universalPassword,
                     ]
                 );
+                setPermissionsTeamId($tenant2->id);
                 $receptionNasr->syncRoles([$receptionRole]);
-                $receptionNasr->branches()->syncWithoutDetaching([$branchNasr->id]);
+                $receptionNasr->branches()->sync([$branchNasr->id]);
 
-                // 3. Receptionist Branch B: استقبال فرع التجمع
+                // --- فرع التجمع الخامس ---
+                // Doctor B: د. خالد عبد الرحمن
+                $drKhaled = User::updateOrCreate(
+                    ['email' => 'dr.khaled@tenant2.com'],
+                    [
+                        'name' => 'د. خالد عبد الرحمن',
+                        'tenant_id' => $tenant2->id,
+                        'password' => $universalPassword,
+                    ]
+                );
+                setPermissionsTeamId($tenant2->id);
+                $drKhaled->syncRoles([$doctorRole]);
+                $drKhaled->branches()->sync([$branchTagamoa->id]);
+
+                // Receptionist B: استقبال فرع التجمع
                 $receptionTagamoa = User::updateOrCreate(
                     ['email' => 'reception.tagamoa@tenant2.com'],
                     [
                         'name' => 'استقبال فرع التجمع',
+                        'tenant_id' => $tenant2->id,
                         'password' => $universalPassword,
                     ]
                 );
+                setPermissionsTeamId($tenant2->id);
                 $receptionTagamoa->syncRoles([$receptionRole]);
-                $receptionTagamoa->branches()->syncWithoutDetaching([$branchTagamoa->id]);
+                $receptionTagamoa->branches()->sync([$branchTagamoa->id]);
             });
         });
     }

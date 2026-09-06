@@ -152,15 +152,19 @@ class LiveQueueController extends Controller
             'branch_id'      => 'required|exists:branches,id',
             'patient_id'     => 'nullable|exists:patients,id',
             'patient'        => 'required_without:patient_id|array',
-            'patient.name'   => 'required_without:patient_id|string|max:255',
-            'patient.phone'  => 'required_without:patient_id|string|max:255',
-            'type'           => 'nullable|string|in:check_up,consultation',
+            'patient.name'           => 'required_without:patient_id|string|max:255',
+            'patient.phone'          => 'required_without:patient_id|string|max:255',
+            'patient.age'            => 'nullable|integer|min:0|max:150',
+            'patient.gender'         => 'nullable|in:male,female',
+            'patient.medical_number' => 'nullable|string|max:100',
+            'type'                   => 'nullable|string|in:check_up,consultation',
+            'doctor_id'              => 'nullable|exists:users,id',
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
         $queueRecord = $appointmentService->checkInWalkIn(
-            $request->only(['patient_id', 'patient', 'type']),
+            $request->only(['patient_id', 'patient', 'type', 'doctor_id']),
             $request->branch_id
         );
 

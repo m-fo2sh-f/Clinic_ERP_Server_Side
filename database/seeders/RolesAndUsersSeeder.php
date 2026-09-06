@@ -21,6 +21,9 @@ class RolesAndUsersSeeder extends Seeder
             ['tenancy_db_name' => 'tenant1_db'] // أو أي الحقول المطلوبة في جدول tenants عندك
         );
 
+        // 1️⃣ تعيين معزل الصلاحيات للـ Tenant
+        setPermissionsTeamId($tenant->id);
+
         // 1️⃣ إنشاء الصلاحيات (Permissions)
         $manageStaff = Permission::firstOrCreate(['name' => 'manage staff']);
         $manageBranches = Permission::firstOrCreate(['name' => 'manage branches']);
@@ -50,28 +53,34 @@ class RolesAndUsersSeeder extends Seeder
 
         // 4️⃣ إنشاء الدكتور الرئيسي (صاحب العيادة - Admin + Doctor)
         $mainDoctor = User::create([
+            'tenant_id' => $tenant->id,
             'name' => 'د. أحمد علي (صاحب العيادة)',
             'email' => 'admin_doctor@clinic.com',
             'password' => Hash::make('12345678'),
         ]);
+        setPermissionsTeamId($tenant->id);
         $mainDoctor->assignRole([$adminRole, $doctorRole]);
         $mainDoctor->branches()->attach([$branchMaadi->id, $branchTagamoa->id]);
 
         // 5️⃣ إنشاء دكتور مساعد
         $subDoctor = User::create([
+            'tenant_id' => $tenant->id,
             'name' => 'د. محمد حسن (دكتور مساعد)',
             'email' => 'doctor2@clinic.com',
             'password' => Hash::make('12345678'),
         ]);
+        setPermissionsTeamId($tenant->id);
         $subDoctor->assignRole($doctorRole);
         $subDoctor->branches()->attach([$branchMaadi->id]);
 
         // 6️⃣ إنشاء موظفة ريسبشن
         $receptionist = User::create([
+            'tenant_id' => $tenant->id,
             'name' => 'سارة - ريسبشن',
             'email' => 'reception@clinic.com',
             'password' => Hash::make('12345678'),
         ]);
+        setPermissionsTeamId($tenant->id);
         $receptionist->assignRole($receptionRole);
         $receptionist->branches()->attach([$branchMaadi->id]);
     }

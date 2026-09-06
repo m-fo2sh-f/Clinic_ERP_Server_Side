@@ -52,11 +52,21 @@ class TenancyServiceProvider extends ServiceProvider
             Events\InitializingTenancy::class => [],
             Events\TenancyInitialized::class => [
                 Listeners\BootstrapTenancy::class,
+                function (Events\TenancyInitialized $event) {
+                    if (function_exists('setPermissionsTeamId')) {
+                        setPermissionsTeamId($event->tenancy->tenant->getTenantKey());
+                    }
+                },
             ],
 
             Events\EndingTenancy::class => [],
             Events\TenancyEnded::class => [
                 Listeners\RevertToCentralContext::class,
+                function (Events\TenancyEnded $event) {
+                    if (function_exists('setPermissionsTeamId')) {
+                        setPermissionsTeamId(null);
+                    }
+                },
             ],
 
             Events\BootstrappingTenancy::class => [],
@@ -83,6 +93,18 @@ class TenancyServiceProvider extends ServiceProvider
     {
         $this->bootEvents();
         $this->mapRoutes();
+
+        Event::listen(\Stancl\Tenancy\Events\TenancyInitialized::class, function ($event) {
+            if (function_exists('setPermissionsTeamId')) {
+                setPermissionsTeamId($event->tenancy->tenant->getTenantKey());
+            }
+        });
+
+        Event::listen(\Stancl\Tenancy\Events\TenancyEnded::class, function () {
+            if (function_exists('setPermissionsTeamId')) {
+                setPermissionsTeamId(null);
+            }
+        });
 
         $this->makeTenancyMiddlewareHighestPriority();
     }

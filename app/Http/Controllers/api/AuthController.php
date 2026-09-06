@@ -21,9 +21,23 @@ class AuthController extends Controller
 
     $user = Auth::user();
 
-    if (method_exists($user, 'tenant') && $user->tenant_id !== tenant('id')) {
-        Auth::logout();
-        return response()->json(['message' => 'هذا الحساب لا يمتلك صلاحية الدخول لهذه العيادة'], 403);
+    $currentTenantId = function_exists('tenant') ? tenant('id') : null;
+    if ($currentTenantId && function_exists('setPermissionsTeamId')) {
+        setPermissionsTeamId($currentTenantId);
+    }
+
+    if ($currentTenantId) {
+        $isDirectMember = $user->tenant_id === $currentTenantId;
+        $hasBranchInTenant = method_exists($user, 'branches') && $user->branches()->where('branches.tenant_id', $currentTenantId)->exists();
+
+        if (!$isDirectMember && !$hasBranchInTenant) {
+            Auth::logout();
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 'TENANT_ACCESS_DENIED',
+                'message' => 'هذا الحساب لا يمتلك صلاحية الدخول لهذه العيادة'
+            ], 403);
+        }
     }
 
     if ($request->hasSession()) {
@@ -75,6 +89,11 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
+        $currentTenantId = function_exists('tenant') ? tenant('id') : null;
+        if ($currentTenantId && function_exists('setPermissionsTeamId')) {
+            setPermissionsTeamId($currentTenantId);
+        }
+
         $user = $request->user();
         $branches = ($user && method_exists($user, 'branches')) 
             ? $user->branches()->get(['branches.id', 'branches.name']) 

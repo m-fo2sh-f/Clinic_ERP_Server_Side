@@ -127,8 +127,8 @@ class PatientService
                 'medical_number'   => !empty($data['medical_number']) ? trim($data['medical_number']) : $mrnData['medical_number'],
                 'name'             => trim($data['name'] ?? 'مريض جديد'),
                 'phone'            => preg_replace('/[^\d]/', '', (string)($data['phone'] ?? '')),
-                'age'              => isset($data['age']) ? (int)$data['age'] : null,
-                'gender'           => $data['gender'] ?? null,
+                'age'              => isset($data['age']) && $data['age'] !== '' && !is_null($data['age']) ? (int)$data['age'] : null,
+                'gender'           => !empty($data['gender']) ? $data['gender'] : null,
                 'blood_group'      => $data['blood_group'] ?? null,
                 'chronic_diseases' => $data['chronic_diseases'] ?? null,
                 'allergies'        => $data['allergies'] ?? null,
@@ -164,6 +164,9 @@ class PatientService
     public function resolvePatient(array $data): string
     {
         if (!empty($data['patient_id'])) {
+            if (!empty($data['patient'])) {
+                $this->updatePatientDetails($data['patient_id'], $data['patient']);
+            }
             return $data['patient_id'];
         }
 
@@ -177,17 +180,6 @@ class PatientService
         $phone = preg_replace('/[^\d]/', '', (string) $rawPhone);
 
         return DB::transaction(function () use ($phone, $name, $data) {
-            if (!empty($phone) && !empty($name)) {
-                $candidates = Patient::where('phone', $phone)->lockForUpdate()->get();
-                $normalizedInputName = self::normalizeName($name);
-
-                foreach ($candidates as $candidate) {
-                    if (self::normalizeName($candidate->name) === $normalizedInputName) {
-                        return $candidate->id;
-                    }
-                }
-            }
-
             $patientPayload = $data['patient'] ?? $data;
             $patientPayload['phone'] = $phone;
             $patientPayload['name']  = $name;
@@ -196,6 +188,18 @@ class PatientService
             }
             if (isset($data['patientGender']) || isset($data['gender'])) {
                 $patientPayload['gender'] = $data['patientGender'] ?? $data['gender'] ?? null;
+            }
+
+            if (!empty($phone) && !empty($name)) {
+                $candidates = Patient::where('phone', $phone)->lockForUpdate()->get();
+                $normalizedInputName = self::normalizeName($name);
+
+                foreach ($candidates as $candidate) {
+                    if (self::normalizeName($candidate->name) === $normalizedInputName) {
+                        $this->updatePatientDetails($candidate->id, $patientPayload);
+                        return $candidate->id;
+                    }
+                }
             }
 
             $newPatient = $this->createPatient($patientPayload);
@@ -239,8 +243,8 @@ class PatientService
             $updates = array_filter([
                 'name'             => isset($data['name']) && trim($data['name']) !== '' ? trim($data['name']) : null,
                 'phone'            => isset($data['phone']) && trim($data['phone']) !== '' ? trim($data['phone']) : null,
-                'age'              => isset($data['age']) ? (int)$data['age'] : null,
-                'gender'           => $data['gender'] ?? null,
+                'age'              => isset($data['age']) && $data['age'] !== '' && !is_null($data['age']) ? (int)$data['age'] : null,
+                'gender'           => !empty($data['gender']) ? $data['gender'] : null,
                 'medical_number'   => !empty($data['medical_number']) ? trim($data['medical_number']) : null,
                 'blood_group'      => $data['blood_group'] ?? null,
                 'chronic_diseases' => $data['chronic_diseases'] ?? null,

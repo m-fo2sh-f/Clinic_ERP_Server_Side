@@ -17,11 +17,11 @@ This document contains standardized login credentials, branch mappings, and mult
 
 ### 👥 Accounts & Credentials
 
-| Role | Display Name | Email Address | Universal Password | Assigned Branch(es) |
+| Role | Display Name | Email Address | Password | Assigned Branch |
 | :--- | :--- | :--- | :---: | :--- |
 | **Doctor 1** | د. أحمد علي | `dr.ahmed@tenant1.com` | `12345678` | الفرع الرئيسي |
 | **Doctor 2** | د. سارة محمود | `dr.sara@tenant1.com` | `12345678` | الفرع الرئيسي |
-| **Shared Receptionist** | استقبال الفرع الرئيسي | `reception@tenant1.com` | `12345678` | الفرع الرئيسي |
+| **Receptionist** | استقبال الفرع الرئيسي | `reception@tenant1.com` | `12345678` | الفرع الرئيسي |
 
 ---
 
@@ -31,19 +31,25 @@ This document contains standardized login credentials, branch mappings, and mult
 - **Domain**: `clinic2.my-saas.test`
 - **Branch Configuration**: Multi-Branch (`فرع مدينة نصر` & `فرع التجمع الخامس`)
 
-### 👥 Accounts & Credentials
+### 👥 Accounts & Credentials (Dedicated Doctor & Receptionist Per Branch)
 
-| Role | Display Name | Email Address | Universal Password | Assigned Branch(es) |
+#### 📍 فرع مدينة نصر (Branch A)
+| Role | Display Name | Email Address | Password | Assigned Branch |
 | :--- | :--- | :--- | :---: | :--- |
-| **Shared Doctor** | د. طارق خليل | `dr.tarek@tenant2.com` | `12345678` | فرع مدينة نصر + فرع التجمع الخامس |
-| **Receptionist (Branch A)** | استقبال فرع مدينة نصر | `reception.nasr@tenant2.com` | `12345678` | فرع مدينة نصر |
-| **Receptionist (Branch B)** | استقبال فرع التجمع | `reception.tagamoa@tenant2.com` | `12345678` | فرع التجمع الخامس |
+| **Doctor A** | د. طارق خليل | `dr.tarek@tenant2.com` | `12345678` | فرع مدينة نصر |
+| **Receptionist A** | استقبال فرع مدينة نصر | `reception.nasr@tenant2.com` | `12345678` | فرع مدينة نصر |
+
+#### 📍 فرع التجمع الخامس (Branch B)
+| Role | Display Name | Email Address | Password | Assigned Branch |
+| :--- | :--- | :--- | :---: | :--- |
+| **Doctor B** | د. خالد عبد الرحمن | `dr.khaled@tenant2.com` | `12345678` | فرع التجمع الخامس |
+| **Receptionist B** | استقبال فرع التجمع | `reception.tagamoa@tenant2.com` | `12345678` | فرع التجمع الخامس |
 
 ---
 
 ## 🛠️ Seeding Command Reference
 
-To execute or re-seed multi-tenant user accounts at any time:
+To re-seed multi-tenant user accounts at any time:
 
 ```bash
 # Seed multi-tenant users and branch structures

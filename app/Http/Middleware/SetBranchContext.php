@@ -10,6 +10,10 @@ class SetBranchContext
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (function_exists('tenant') && tenant('id') && function_exists('setPermissionsTeamId')) {
+            setPermissionsTeamId(tenant('id'));
+        }
+
         $branchId = $request->header('X-Branch-ID');
         $user = $request->user();
 

@@ -33,8 +33,16 @@ class StoreAppointmentRequest extends FormRequest
             'status'           => ['required', Rule::enum(AppointmentStatus::class)],
             'patient_id'       => 'nullable|exists:patients,id',
             'patient'          => 'required_without:patient_id|array',
-            'patient.name'     => 'required_without:patient_id|string|max:255',
-            'patient.phone'    => 'required_without:patient_id|string|max:255',
+            'patient.name'             => 'required_without:patient_id|string|max:255',
+            'patient.phone'            => 'required_without:patient_id|string|max:255',
+            'patient.age'              => 'nullable|integer|min:0|max:150',
+            'patient.gender'           => 'nullable|in:male,female',
+            'patient.medical_number'   => 'nullable|string|max:100',
+            'patient.blood_group'      => 'nullable|string|max:10',
+            'patient.chronic_diseases' => 'nullable|string|max:1000',
+            'patient.allergies'        => 'nullable|string|max:1000',
+            'patient.surgeries'        => 'nullable|string|max:1000',
+            'patient.medical_history'  => 'nullable|string|max:2000',
         ];
     }
 

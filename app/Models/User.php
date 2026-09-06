@@ -13,12 +13,14 @@ use Spatie\Permission\Traits\HasRoles;
 
 use App\Models\Branch;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'tenant_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+    protected string $guard_name = 'web';
 
     /**
      * Get the attributes that should be cast.

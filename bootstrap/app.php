@@ -18,8 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // 🎯 2. تسجيل الـ Aliases لكي يفهم لارافيل كلمة 'role' في الروتات
+        // 🎯 تسجيل الـ Middleware Aliases
         $middleware->alias([
+            'tenant.user'        => \App\Http\Middleware\EnsureUserBelongsToTenant::class,
             'role'               => RoleMiddleware::class,
             'permission'         => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,

@@ -296,4 +296,64 @@ class AppointmentArchitectureTest extends TestCase
         $allQueue = $liveQueueService->getQueueForBranch($this->branch->id, null);
         $this->assertCount(2, $allQueue);
     }
+
+    /** @test */
+    public function test_creates_appointment_and_persists_patient_age_and_gender(): void
+    {
+        $appointment = $this->appointmentService->createAppointment([
+            'branch_id'        => $this->branch->id,
+            'appointment_time' => now()->addDay()->format('Y-m-d H:i:s'),
+            'type'             => 'check_up',
+            'patient'          => [
+                'name'   => 'Patient With Demographics',
+                'phone'  => '01055556666',
+                'age'    => 28,
+                'gender' => 'male',
+            ]
+        ]);
+
+        $this->assertDatabaseHas('patients', [
+            'id'     => $appointment->patient_id,
+            'name'   => 'Patient With Demographics',
+            'phone'  => '01055556666',
+            'age'    => 28,
+            'gender' => 'male',
+        ]);
+    }
+
+    /** @test */
+    public function test_api_store_appointment_validates_and_persists_patient_age_and_gender(): void
+    {
+        $this->tenant->domains()->create(['domain' => 'tenant.test']);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+
+        $user = \App\Models\User::factory()->create();
+        $user->assignRole('receptionist');
+        $user->branches()->attach($this->branch->id);
+
+        $response = $this->actingAs($user)->postJson('http://tenant.test/api/v1/appointments', [
+            'branch_id'        => $this->branch->id,
+            'appointment_time' => now()->addDay()->format('Y-m-d H:i:s'),
+            'type'             => 'check_up',
+            'status'           => 'booking',
+            'patient'          => [
+                'name'   => 'API Patient Age Gender',
+                'phone'  => '01077779999',
+                'age'    => 45,
+                'gender' => 'female',
+            ]
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.patient.age', 45);
+        $response->assertJsonPath('data.patient.gender', 'female');
+
+        $this->assertDatabaseHas('patients', [
+            'name'   => 'API Patient Age Gender',
+            'phone'  => '01077779999',
+            'age'    => 45,
+            'gender' => 'female',
+        ]);
+    }
 }
+

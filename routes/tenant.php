@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
+use App\Http\Middleware\EnsureUserBelongsToTenant;
 
 use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\LiveQueueController;
@@ -27,7 +28,7 @@ Route::middleware([
     Route::get('/api/v1/public/live-queues', [LiveQueueController::class, 'publicIndex'])->middleware('throttle:120,1');
 
     // 🔒 2. روتات تتطلب تسجيل دخول إجباري (Authenticated Routes)
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {
 
         // 📡 روت مصادقة القنوات الخاصة بالـ WebSockets تحت الـ Tenant
         Broadcast::routes(['middleware' => ['auth:sanctum']]);
