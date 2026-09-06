@@ -22,9 +22,7 @@ return new class extends Migration
 
             $table->index('trade_name', 'idx_drugs_trade_name');
             $table->index('barcode', 'idx_drugs_barcode');
-            if (DB::getDriverName() !== 'sqlite') {
-                $table->fullText(['trade_name', 'active_ingredient'], 'ft_drugs_search');
-            }
+            $table->fullText(['trade_name', 'active_ingredient', 'barcode', 'company'], 'ft_drugs_search');
         });
     }
 

@@ -40,15 +40,53 @@ class Drug extends Model
 
     /**
      * Scope a query to search drugs by keyword across trade_name, active_ingredient, barcode, company.
+     * Eliminates full table scans at scale using B-Tree prefix indexes and MySQL Full-Text search.
      */
-    public function scopeSearch(Builder $query, string $term): Builder
+    public function scopeSearch(Builder $query, ?string $term): Builder
     {
-        return $query->where(function (Builder $q) use ($term) {
-            $q->where('trade_name', 'like', "%{$term}%")
-              ->orWhere('active_ingredient', 'like', "%{$term}%")
-              ->orWhere('barcode', 'like', "%{$term}%")
-              ->orWhere('company', 'like', "%{$term}%");
-        });
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        // 1. Purely numeric: Barcode prefix lookup using idx_drugs_barcode
+        if (preg_match('/^[0-9]+$/', $term)) {
+            return $query->where('barcode', 'LIKE', "{$term}%");
+        }
+
+        // 2. Short queries (< 3 chars): Prefix match on trade_name using idx_drugs_trade_name
+        if (mb_strlen($term) < 3) {
+            return $query->where('trade_name', 'LIKE', "{$term}%");
+        }
+
+        // 3. Queries >= 3 chars: Native MySQL Full-Text search
+        $booleanQuery = self::formatBooleanQuery($term);
+
+        if (empty($booleanQuery)) {
+            return $query->where('trade_name', 'LIKE', "{$term}%");
+        }
+
+        return $query->whereRaw(
+            "MATCH(trade_name, active_ingredient, barcode, company) AGAINST(? IN BOOLEAN MODE)",
+            [$booleanQuery]
+        );
+    }
+
+    /**
+     * Sanitize input and build MySQL Full-Text Boolean query (+word*).
+     */
+    public static function formatBooleanQuery(string $term): string
+    {
+        // Strip problematic Boolean mode operators: + - * @ ~ < > ( ) " %
+        $sanitized = preg_replace('/[+\-><()~*\"@%]+/', ' ', $term);
+        $words = array_filter(explode(' ', trim((string) $sanitized)));
+
+        if (empty($words)) {
+            return '';
+        }
+
+        return implode(' ', array_map(fn ($word) => "+{$word}*", $words));
     }
 
     public function scopeByForm(Builder $query, string $form): Builder

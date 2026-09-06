@@ -92,13 +92,31 @@ class LiveQueueController extends Controller
 
     public function reorder(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        if (!$user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin', 'doctor'])) {
+            abort(403, 'غير مصرح لك بإعادة ترتيب طابور الانتظار.');
+        }
+
         $request->validate([
             'ordered_ids'   => 'required|array',
             'ordered_ids.*' => 'required|string',
             'branch_id'     => 'required|string',
         ]);
 
-        $this->authorizeBranchAccess($request->user(), $request->branch_id);
+        $this->authorizeBranchAccess($user, $request->branch_id);
+
+        // If user is a doctor without receptionist/owner role, verify they are only reordering their own queue
+        if ($user->hasRole('doctor') && !$user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
+            $otherDoctorItems = LiveQueue::whereIn('id', $request->ordered_ids)
+                ->where('doctor_id', '!=', $user->id)
+                ->whereNotNull('doctor_id')
+                ->exists();
+
+            if ($otherDoctorItems) {
+                abort(403, 'غير مصرح للطبيب بإعادة ترتيب طابور طبيب آخر.');
+            }
+        }
 
         $this->liveQueueService->reorderQueue(
             $request->ordered_ids,
@@ -116,18 +134,37 @@ class LiveQueueController extends Controller
      */
     public function nextPatient(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'doctor_id' => 'nullable|exists:users,id',
-            'room_name' => 'nullable|string',
+            'room_name' => 'nullable|string|max:100',
         ]);
 
-        $this->authorizeBranchAccess($request->user(), $request->branch_id);
+        $user = $request->user();
+        $this->authorizeBranchAccess($user, $validated['branch_id']);
 
-        $doctorId = $request->query('doctor_id') ?? $request->user()->id;
-        $roomName = $request->query('room_name') ?? 'Examination Room';
+        if ($user->hasRole('doctor')) {
+            // Doctors must NEVER call patients for another doctor. Strictly bind doctor_id = $user->id.
+            $doctorId = $user->id;
+        } elseif ($user->hasRole('clinic_owner') || $user->hasRole('tenant_admin')) {
+            // Clinic owner may specify doctor_id or default to authenticated user
+            $doctorId = $validated['doctor_id'] ?? $user->id;
+            if (!empty($validated['doctor_id'])) {
+                $doctorUser = \App\Models\User::where('id', $validated['doctor_id'])
+                    ->where('tenant_id', $user->tenant_id)
+                    ->first();
 
-        $nextPatient = $this->liveQueueService->callNextPatient($request->branch_id, $doctorId, $roomName);
+                if (!$doctorUser || !$doctorUser->branches()->where('branches.id', $validated['branch_id'])->exists()) {
+                    abort(422, 'الطبيب المحدد لا ينتمي إلى هذا الفرع أو المركز الطبي.');
+                }
+            }
+        } else {
+            abort(403, 'غير مصرح لك باستدعاء المريض للكشف.');
+        }
+
+        $roomName = $validated['room_name'] ?? 'Examination Room';
+
+        $nextPatient = $this->liveQueueService->callNextPatient($validated['branch_id'], $doctorId, $roomName);
 
         if (!$nextPatient) {
             return response()->json([

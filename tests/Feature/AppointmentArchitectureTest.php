@@ -13,6 +13,7 @@ use App\Services\AppointmentService;
 use App\Services\PatientService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;      
 
 class AppointmentArchitectureTest extends TestCase
 {
@@ -208,6 +209,7 @@ class AppointmentArchitectureTest extends TestCase
             'phone'          => '01077778888',
             'medical_number' => 'MRN-99999',
         ]);
+        DB::commit();
 
         $results = $this->patientService->search(new \Illuminate\Http\Request(['q' => 'MRN-99999']));
         $this->assertTrue($results->contains('id', $patient->id));
@@ -354,6 +356,40 @@ class AppointmentArchitectureTest extends TestCase
             'age'    => 45,
             'gender' => 'female',
         ]);
+    }
+
+    /** @test */
+    public function test_lists_branch_appointments_by_date_range_ordered_by_time(): void
+    {
+        $targetDate = now()->addDays(2)->format('Y-m-d');
+
+        $appt1 = Appointment::factory()->create([
+            'branch_id'        => $this->branch->id,
+            'appointment_time' => \Carbon\Carbon::parse($targetDate . ' 14:00:00'),
+            'doctor_id'        => null,
+        ]);
+
+        $appt2 = Appointment::factory()->create([
+            'branch_id'        => $this->branch->id,
+            'appointment_time' => \Carbon\Carbon::parse($targetDate . ' 10:00:00'),
+            'doctor_id'        => null,
+        ]);
+
+        // Out of range appointment (different day)
+        $apptOtherDay = Appointment::factory()->create([
+            'branch_id'        => $this->branch->id,
+            'appointment_time' => \Carbon\Carbon::parse($targetDate)->addDays(2)->setTime(10, 0, 0),
+        ]);
+
+        $appointments = $this->appointmentService->getAllAppointmentsForBranch(
+            $this->branch->id,
+            $targetDate
+        );
+
+        $this->assertCount(2, $appointments);
+        $this->assertEquals($appt2->id, $appointments[0]->id); // 10:00 AM comes before 14:00 PM
+        $this->assertEquals($appt1->id, $appointments[1]->id);
+        $this->assertFalse($appointments->contains('id', $apptOtherDay->id));
     }
 }
 

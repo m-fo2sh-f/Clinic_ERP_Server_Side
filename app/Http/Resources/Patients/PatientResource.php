@@ -14,6 +14,8 @@ class PatientResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $isClinicalStaff = $request->user()?->hasAnyRole(['doctor', 'clinic_owner']);
+
         return [
             'id'                           => $this->id,
             'medical_number'               => $this->medical_number,
@@ -23,10 +25,10 @@ class PatientResource extends JsonResource
             'age'                          => $this->age,
             'gender'                       => $this->gender,
             'blood_group'                  => $this->blood_group,
-            'chronic_diseases'             => $this->chronic_diseases,
-            'allergies'                    => $this->allergies,
-            'surgeries'                    => $this->surgeries,
-            'medical_history'              => $this->medical_history,
+            'chronic_diseases'             => $this->when($isClinicalStaff, $this->chronic_diseases),
+            'allergies'                    => $this->when($isClinicalStaff, $this->allergies),
+            'surgeries'                    => $this->when($isClinicalStaff, $this->surgeries),
+            'medical_history'              => $this->when($isClinicalStaff, $this->medical_history),
             'total_completed_count'        => (int) ($this->total_completed_count ?? 0),
             'branch_completed_count'       => (int) ($this->branch_completed_count ?? 0),
             'completed_appointments_count' => (int) ($this->completed_appointments_count ?? $this->total_completed_count ?? 0),

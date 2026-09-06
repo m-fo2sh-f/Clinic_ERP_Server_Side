@@ -79,29 +79,32 @@ class ConsultationService
                 'follow_up_date'    => $data['follow_up_date'] ?? null,
             ]);
 
-            // 5. Create PrescriptionItem records (bulk)
+            // 5. Create PrescriptionItem records via Eloquent relationship
             if (!empty($data['medications'])) {
+                throw_if(
+                    empty($prescription->tenant_id),
+                    \RuntimeException::class,
+                    'Tenant context missing for prescription.'
+                );
+
                 $items = [];
                 foreach ($data['medications'] as $index => $med) {
                     $dose = $med['dosage'] ?? $med['dose'] ?? '';
                     $instruction = $med['instructions'] ?? $med['instruction'] ?? null;
 
                     $items[] = [
-                        'id'              => Str::uuid()->toString(),
-                        'tenant_id'       => $prescription->tenant_id ?? (function_exists('tenant') ? tenant('id') : null),
-                        'prescription_id' => $prescription->id,
-                        'drug_id'         => $med['drug_id'] ?? null,
-                        'drug_name'       => $med['name'],
-                        'dose'            => $dose,
-                        'frequency'       => $med['frequency'] ?? '',
-                        'duration'        => $med['duration'] ?? '',
-                        'instruction'     => $instruction,
-                        'sort_order'      => $med['sort_order'] ?? $index,
-                        'created_at'      => now(),
-                        'updated_at'      => now(),
+                        'tenant_id'   => $prescription->tenant_id,
+                        'drug_id'     => $med['drug_id'] ?? null,
+                        'drug_name'   => $med['name'],
+                        'dose'        => $dose,
+                        'frequency'   => $med['frequency'] ?? '',
+                        'duration'    => $med['duration'] ?? '',
+                        'instruction' => $instruction,
+                        'sort_order'  => $med['sort_order'] ?? $index,
                     ];
                 }
-                DB::table('prescription_items')->insert($items);
+
+                $prescription->items()->createMany($items);
             }
 
             // 6. Mark LiveQueue entry as completed

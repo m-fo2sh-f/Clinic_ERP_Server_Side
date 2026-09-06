@@ -32,6 +32,7 @@ class PatientHistoryResource extends JsonResource
             'branch_completed_count'       => (int) ($this->branch_completed_count ?? 0),
             'completed_appointments_count' => (int) ($this->completed_appointments_count ?? 0),
             'appointments'                 => AppointmentResource::collection($this->whenLoaded('appointments')),
+            'consultations'                => AppointmentResource::collection($this->whenLoaded('appointments')),
             'created_at'                   => $this->created_at?->toIso8601String(),
         ];
     }

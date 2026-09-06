@@ -28,10 +28,9 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
             $table->index(['tenant_id', 'mrn_sequence'], 'idx_patients_tenant_mrn_seq');
             $table->index(['tenant_id', 'phone', 'name'], 'idx_patients_tenant_phone_name');
+            $table->index(['tenant_id', 'created_at'], 'idx_patients_tenant_created');
             $table->unique(['tenant_id', 'medical_number'], 'uniq_patients_tenant_medical_number');
-            if (DB::getDriverName() !== 'sqlite') {
-                $table->fullText(['name', 'phone'], 'ft_patients_name_phone');
-            }
+            $table->fullText(['name', 'phone'], 'ft_patients_name_phone');
         });
     }
 

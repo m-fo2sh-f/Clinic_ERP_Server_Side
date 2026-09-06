@@ -18,12 +18,11 @@ class PatientService
     {
         $query = Patient::query();
 
-        // 1. Search by patient name or phone number
+        // 1. Search by patient name, phone, or MRN using native MySQL indexing
         if (!empty($search)) {
             $searchTerm = trim($search);
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('phone', 'LIKE', "%{$searchTerm}%");
+                $this->applyOptimizedSearch($q, $searchTerm);
             });
         }
 
@@ -46,7 +45,7 @@ class PatientService
             }
         ])
         ->orderByDesc('created_at')
-        ->get(['id', 'name', 'phone', 'age', 'gender', 'medical_history', 'created_at']);
+        ->get(['id', 'medical_number', 'name', 'phone', 'age', 'gender', 'medical_history', 'created_at']);
     }
 
     /**
@@ -62,13 +61,68 @@ class PatientService
 
         return Patient::query()
             ->where(function ($q) use ($query) {
-                $q->where('name', 'LIKE', "%{$query}%")
-                  ->orWhere('phone', 'LIKE', "%{$query}%")
-                  ->orWhere('medical_number', 'LIKE', "%{$query}%");
+                $this->applyOptimizedSearch($q, $query);
             })
             ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender'])
             ->limit(15)
             ->get();
+    }
+
+    /**
+     * Apply native MySQL high-performance search branching.
+     * Eliminates full table scans at 10M+ scale using composite B-Tree indexes and Full-Text index.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder $query
+     * @param string $term
+     */
+    public function applyOptimizedSearch($query, string $term): void
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return;
+        }
+
+        // 1. Numeric / Phone query: Prefix match leveraging composite B-Tree indexes
+        $isNumericOrPhone = preg_match('/^[0-9+\s\-]+$/', $term) || preg_match('/^(mrn|pt)[-_\d]/i', $term);
+
+        if ($isNumericOrPhone) {
+            $cleanPhone = preg_replace('/[^\d]/', '', $term);
+            $query->where(function ($q) use ($cleanPhone, $term) {
+                if (!empty($cleanPhone)) {
+                    $q->where('phone', 'LIKE', "{$cleanPhone}%");
+                }
+                $q->orWhere('medical_number', 'LIKE', "{$term}%");
+            });
+            return;
+        }
+
+        // 2. Text / Name query (>= 3 characters): Native MySQL Full-Text search
+        if (mb_strlen($term) >= 3) {
+            $booleanQuery = $this->formatBooleanQuery($term);
+            if (!empty($booleanQuery)) {
+                $query->whereRaw("MATCH(name, phone) AGAINST(? IN BOOLEAN MODE)", [$booleanQuery]);
+                return;
+            }
+        }
+
+        // 3. Short strings (< 3 characters) or fallback: Prefix match
+        $query->where('name', 'LIKE', "{$term}%");
+    }
+
+    /**
+     * Format input for MySQL Full-Text Boolean Mode (+word*), stripping problematic operators.
+     */
+    protected function formatBooleanQuery(string $term): string
+    {
+        // Strip problematic Boolean mode operators: + - * @ ~ < > ( ) "
+        $sanitized = preg_replace('/[+\-><()~*\"@%]+/', ' ', $term);
+        $words = array_filter(explode(' ', trim((string) $sanitized)));
+
+        if (empty($words)) {
+            return '';
+        }
+
+        return implode(' ', array_map(fn ($word) => "+{$word}*", $words));
     }
 
     /**
