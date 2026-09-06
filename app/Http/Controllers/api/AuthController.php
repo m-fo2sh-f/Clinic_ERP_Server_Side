@@ -21,6 +21,31 @@ class AuthController extends Controller
 
     $user = Auth::user();
 
+    // 👑 1. Super Admin Platform Access Bypass (Technical Directive 2)
+    if ((bool)$user->is_super_admin) {
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+        $token = $user->createToken('platform-token')->plainTextToken;
+
+        return response()->json([
+            'message'        => 'تم تسجيل دخول مدير المنصة بنجاح',
+            'token'          => $token,
+            'is_super_admin' => true,
+            'redirect'       => '/platform',
+            'tenant'         => null,
+            'user'           => [
+                'id'             => $user->id,
+                'name'           => $user->name,
+                'email'          => $user->email,
+                'is_super_admin' => true,
+                'roles'          => ['super_admin'],
+                'permissions'    => ['platform.manage'],
+            ],
+            'branches'       => [],
+        ], 200);
+    }
+
     $currentTenantId = function_exists('tenant') ? tenant('id') : null;
     if ($currentTenantId && function_exists('setPermissionsTeamId')) {
         setPermissionsTeamId($currentTenantId);
@@ -68,6 +93,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'is_super_admin' => false,
             'roles' => $roles,
             'permissions' => $permissions,
         ],
@@ -89,12 +115,28 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
+        $user = $request->user();
+
+        if ($user && (bool)$user->is_super_admin) {
+            return response()->json([
+                'tenant' => null,
+                'user' => [
+                    'id'             => $user->id,
+                    'name'           => $user->name,
+                    'email'          => $user->email,
+                    'is_super_admin' => true,
+                    'roles'          => ['super_admin'],
+                    'permissions'    => ['platform.manage'],
+                ],
+                'branches' => []
+            ]);
+        }
+
         $currentTenantId = function_exists('tenant') ? tenant('id') : null;
         if ($currentTenantId && function_exists('setPermissionsTeamId')) {
             setPermissionsTeamId($currentTenantId);
         }
 
-        $user = $request->user();
         $branches = ($user && method_exists($user, 'branches')) 
             ? $user->branches()->get(['branches.id', 'branches.name']) 
             : [];
@@ -110,6 +152,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'is_super_admin' => false,
                 'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
                 'permissions' => method_exists($user, 'getAllPermissions') ? $user->getAllPermissions()->pluck('name') : [],
             ] : null,

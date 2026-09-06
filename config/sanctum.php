@@ -3,7 +3,7 @@
 return [
 
     'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', 
-        'localhost,localhost:5173,localhost:3000,127.0.0.1,127.0.0.1:8000,::1,my-saas.test,clinic1.my-saas.test,clinic2.my-saas.test,clinic1.my-saas.test:5173,clinic2.my-saas.test:5173'
+        'localhost,localhost:5173,localhost:3000,127.0.0.1,127.0.0.1:8000,::1,my-saas.test,my-saas.test:5173,clinic1.my-saas.test,clinic2.my-saas.test,clinic1.my-saas.test:5173,clinic2.my-saas.test:5173'
     )),
 
     'guard' => ['web'],

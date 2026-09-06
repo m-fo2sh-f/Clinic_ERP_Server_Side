@@ -20,11 +20,25 @@ class UserTenantSeeder extends Seeder
         DB::transaction(function () {
             $universalPassword = Hash::make('12345678');
 
+            // 👑 0. GLOBAL PLATFORM SUPER ADMIN
+            $superAdmin = User::updateOrCreate(
+                ['email' => 'admin@platform.test'],
+                [
+                    'name' => 'Platform Super Admin',
+                    'tenant_id' => null,
+                    'password' => $universalPassword,
+                ]
+            );
+            $superAdmin->is_super_admin = true;
+            $superAdmin->save();
+
             // =========================================================================
             // 1. TENANT 1: عيادة النور التخصصية (tenant-1)
-            // Single Branch with 2 Doctors & 1 Shared Receptionist
+            // Single Branch with 2 Doctors & 1 Shared Receptionist & 1 Clinic Owner
             // =========================================================================
             $tenant1 = Tenant::firstOrCreate(['id' => 'tenant-1']);
+            $tenant1->is_active = true;
+            $tenant1->save();
             $tenant1->domains()->firstOrCreate(['domain' => 'clinic1.my-saas.test']);
 
             $tenant1->run(function () use ($tenant1, $universalPassword) {
@@ -32,6 +46,9 @@ class UserTenantSeeder extends Seeder
                 setPermissionsTeamId($tenant1->id);
 
                 // Ensure Roles exist for both web and sanctum guards
+                $ownerRole     = Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'web']);
+                Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'sanctum']);
+
                 $doctorRole    = Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
                 Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'sanctum']);
 
@@ -43,6 +60,19 @@ class UserTenantSeeder extends Seeder
                     ['name' => 'الفرع الرئيسي'],
                     ['address' => 'الفرع الرئيسي - عيادة النور']
                 );
+
+                // 0. Clinic Owner: د. محمد نور (مالك العيادة)
+                $owner1 = User::updateOrCreate(
+                    ['email' => 'owner1@tenant1.com'],
+                    [
+                        'name' => 'د. محمد نور (مالك العيادة)',
+                        'tenant_id' => $tenant1->id,
+                        'password' => $universalPassword,
+                    ]
+                );
+                setPermissionsTeamId($tenant1->id);
+                $owner1->syncRoles([$ownerRole]);
+                $owner1->branches()->syncWithoutDetaching([$mainBranch->id]);
 
                 // 1. Doctor 1: د. أحمد علي
                 $drAhmed = User::updateOrCreate(
@@ -86,9 +116,11 @@ class UserTenantSeeder extends Seeder
 
             // =========================================================================
             // 2. TENANT 2: مجموعة عيادات الأمل الطبية (tenant-2)
-            // Multi-Branch: Each branch has its dedicated Doctor and Receptionist
+            // Multi-Branch: Each branch has its dedicated Doctor and Receptionist & Clinic Owner
             // =========================================================================
             $tenant2 = Tenant::firstOrCreate(['id' => 'tenant-2']);
+            $tenant2->is_active = true;
+            $tenant2->save();
             $tenant2->domains()->firstOrCreate(['domain' => 'clinic2.my-saas.test']);
 
             $tenant2->run(function () use ($tenant2, $universalPassword) {
@@ -96,6 +128,9 @@ class UserTenantSeeder extends Seeder
                 setPermissionsTeamId($tenant2->id);
 
                 // Ensure Roles exist for both web and sanctum guards
+                $ownerRole2    = Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'web']);
+                Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'sanctum']);
+
                 $doctorRole    = Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
                 Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'sanctum']);
 
@@ -113,6 +148,19 @@ class UserTenantSeeder extends Seeder
                     ['name' => 'فرع التجمع الخامس'],
                     ['address' => 'التجمع الخامس - شارع التسعين']
                 );
+
+                // 0. Clinic Owner: د. حسام الأمل (مالك العيادة)
+                $owner2 = User::updateOrCreate(
+                    ['email' => 'owner2@tenant2.com'],
+                    [
+                        'name' => 'د. حسام الأمل (مالك العيادة)',
+                        'tenant_id' => $tenant2->id,
+                        'password' => $universalPassword,
+                    ]
+                );
+                setPermissionsTeamId($tenant2->id);
+                $owner2->syncRoles([$ownerRole2]);
+                $owner2->branches()->syncWithoutDetaching([$branchNasr->id, $branchTagamoa->id]);
 
                 // --- فرع مدينة نصر ---
                 // Doctor A: د. طارق خليل
