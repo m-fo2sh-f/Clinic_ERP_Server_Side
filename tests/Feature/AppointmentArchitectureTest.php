@@ -9,8 +9,8 @@ use App\Models\Appointment;
 use App\Models\LiveQueue;
 use App\Models\Tenant;
 use App\Enums\AppointmentStatus;
-use App\Services\AppointmentService;
-use App\Services\PatientService;
+use App\Services\Clinic\AppointmentService;
+use App\Services\Clinic\PatientService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;      
@@ -282,7 +282,7 @@ class AppointmentArchitectureTest extends TestCase
         ]);
         $queue2 = $this->appointmentService->checkInAppointment($appt2->id);
 
-        $liveQueueService = app(\App\Services\LiveQueueService::class);
+        $liveQueueService = app(\App\Services\Clinic\LiveQueueService::class);
 
         // Queue for Dr. Ahmed
         $doc1Queue = $liveQueueService->getQueueForBranch($this->branch->id, $doctor1->id);

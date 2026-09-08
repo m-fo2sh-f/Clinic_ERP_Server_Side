@@ -14,7 +14,7 @@ use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Enums\LiveQueueStatus;
 use App\Enums\AppointmentStatus;
-use App\Services\ConsultationService;
+use App\Services\Clinic\ConsultationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;

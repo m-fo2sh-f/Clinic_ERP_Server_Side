@@ -7,12 +7,12 @@ use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 
-use App\Http\Controllers\Api\V1\AppointmentController;
-use App\Http\Controllers\Api\V1\LiveQueueController;
-use App\Http\Controllers\Api\V1\PatientController;
-use App\Http\Controllers\Api\V1\ConsultationController;
-use App\Http\Controllers\Api\V1\BranchController;
-use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\V1\Clinic\AppointmentController;
+use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
+use App\Http\Controllers\Api\V1\Clinic\PatientController;
+use App\Http\Controllers\Api\V1\Clinic\ConsultationController;
+use App\Http\Controllers\Api\V1\Clinic\BranchController;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
 use Illuminate\Support\Facades\Broadcast;
 
 

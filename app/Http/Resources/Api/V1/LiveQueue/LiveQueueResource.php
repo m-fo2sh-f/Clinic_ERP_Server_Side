@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Http\Resources\Api\V1\LiveQueue;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\Api\V1\Patient\PatientResource;
+
+class LiveQueueResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            "id"             => $this->id,
+            "queue_no"       => $this->queue_no,
+            "status"         => $this->status,
+            "checked_in_at"  => $this->checked_in_at,
+            "appointment_id" => $this->appointment_id,
+            "doctor_id"      => $this->doctor_id,
+            "patient"        => new PatientResource($this->whenLoaded('patient')),
+            "doctor"         => $this->whenLoaded('doctor', fn () => [
+                'id'   => $this->doctor->id,
+                'name' => $this->doctor->name,
+            ]),
+        ];
+    }
+}

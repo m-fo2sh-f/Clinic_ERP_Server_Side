@@ -1,10 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\Platform\PlatformMetricsController;
-use App\Http\Controllers\Api\Platform\PlatformTenantController;
-use App\Http\Controllers\Api\Platform\PlatformImpersonationController;
-use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\V1\Platform\PlatformMetricsController;
+use App\Http\Controllers\Api\V1\Platform\PlatformTenantController;
+use App\Http\Controllers\Api\V1\Platform\PlatformImpersonationController;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
 
 /*
 |--------------------------------------------------------------------------
