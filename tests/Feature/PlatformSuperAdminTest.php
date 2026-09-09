@@ -252,4 +252,60 @@ class PlatformSuperAdminTest extends TestCase
         $this->assertNotNull($auditLog);
         $this->assertEquals($this->superAdmin->id, $auditLog->super_admin_id);
     }
+
+    /** @test */
+    public function test_super_admin_can_access_me_and_logout_on_central_domain_and_platform_prefix(): void
+    {
+        // 1. GET /api/v1/platform/me
+        $resPlatformMe = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+            ->getJson('/api/v1/platform/me');
+
+        $resPlatformMe->assertStatus(200);
+        $resPlatformMe->assertJson([
+            'user' => [
+                'id'             => $this->superAdmin->id,
+                'email'          => $this->superAdmin->email,
+                'is_super_admin' => true,
+            ],
+        ]);
+
+        // 2. GET /api/v1/me (Global Central Domain Endpoint)
+        $resGlobalMe = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+            ->getJson('/api/v1/me');
+
+        $resGlobalMe->assertStatus(200);
+        $resGlobalMe->assertJson([
+            'user' => [
+                'id'             => $this->superAdmin->id,
+                'email'          => $this->superAdmin->email,
+                'is_super_admin' => true,
+            ],
+        ]);
+
+        // 3. POST /api/v1/platform/logout
+        $resPlatformLogout = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+            ->postJson('/api/v1/platform/logout');
+
+        $resPlatformLogout->assertStatus(200);
+
+        // 4. POST /api/v1/logout
+        $resGlobalLogout = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+            ->postJson('/api/v1/logout');
+
+        $resGlobalLogout->assertStatus(200);
+    }
+
+    /** @test */
+    public function test_non_super_admin_receives_403_on_platform_me(): void
+    {
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->clinicOwnerToken)
+            ->getJson('/api/v1/platform/me');
+
+        $response->assertStatus(403);
+        $response->assertJson([
+            'status'  => 'error',
+            'message' => 'غير مصرح لك بالوصول إلى لوحة التحكم المركزية للمنصة.',
+        ]);
+    }
 }
+

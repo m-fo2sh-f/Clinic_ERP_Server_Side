@@ -11,7 +11,14 @@ class Branch extends Model
 {
     use BelongsToTenant, HasUuids, HasFactory;
 
-    protected $fillable = ['name', 'address']; 
+    protected $fillable = ['name', 'address', 'phone', 'is_active']; 
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
 
     public function appointments(){
 

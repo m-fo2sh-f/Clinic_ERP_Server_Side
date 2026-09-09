@@ -15,6 +15,8 @@ return new class extends Migration
             $table->string('tenant_id');
             $table->string('name');
             $table->string('address')->nullable();
+            $table->string('phone', 20)->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
 
             //علاقة الـ Foreign Key مع جدول الـ tenants الأساسي للباكدج

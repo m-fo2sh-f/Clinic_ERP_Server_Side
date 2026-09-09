@@ -20,6 +20,7 @@ class PlatformTenantUserResource extends JsonResource
             'email'      => $this->email,
             'roles'      => $this->tenant_roles ?? [],
             'branches'   => $this->tenant_branches ?? [],
+            'branch_ids' => $this->tenant_branch_ids ?? [],
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

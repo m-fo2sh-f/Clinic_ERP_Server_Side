@@ -98,8 +98,14 @@ class PlatformTenantService
                 ->pluck('branches.name')
                 ->toArray();
 
+            $userBranchIds = $user->branches()
+                ->where('branches.tenant_id', $tenantId)
+                ->pluck('branches.id')
+                ->toArray();
+
             $user->tenant_roles = $scopedRoles;
             $user->tenant_branches = $userBranches;
+            $user->tenant_branch_ids = $userBranchIds;
 
             return $user;
         });
