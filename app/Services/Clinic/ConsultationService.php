@@ -4,7 +4,9 @@ namespace App\Services\Clinic;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\LiveQueueStatus;
+use App\Enums\PaymentStatus;
 use App\Events\LiveQueueUpdated;
+use App\Events\InvoiceReadyForPayment;
 use App\Models\Appointment;
 use App\Models\LiveQueue;
 use App\Models\Patient;
@@ -54,15 +56,22 @@ class ConsultationService
                 }
             }
 
-            // 3. Update Appointment with clinical findings, vitals JSON (SSOT), diagnosis array, and mark completed
-            $appointment = Appointment::lockForUpdate()->findOrFail($data['appointment_id']);
+            // 3. Update Appointment with clinical findings, vitals JSON (SSOT), diagnosis array, and mark completed/pending_payment
+            $appointment = Appointment::lockForUpdate()->with('invoice')->findOrFail($data['appointment_id']);
+
+            $invoice = $appointment->invoice;
+            $hasUnpaidInvoice = $invoice && ($invoice->payment_status !== PaymentStatus::PAID && $invoice->payment_status?->value !== PaymentStatus::PAID->value);
+
+            $newStatus = $hasUnpaidInvoice
+                ? AppointmentStatus::PENDING_PAYMENT->value
+                : AppointmentStatus::COMPLETED->value;
 
             $appointment->update([
                 'chief_complaint'      => $data['chief_complaint'],
                 'diagnosis'            => $data['diagnoses'], // Native array cast (no manual json_encode)
                 'clinical_examination' => $data['examination_findings'] ?? null,
                 'vitals'               => $data['vitals'] ?? null, // SSOT JSON for all vital signs
-                'status'               => AppointmentStatus::COMPLETED->value,
+                'status'               => $newStatus,
                 'completed_at'         => now(),
             ]);
 
@@ -72,7 +81,7 @@ class ConsultationService
             $prescription = Prescription::create([
                 'appointment_id'    => $appointment->id,
                 'patient_id'        => $data['patient_id'],
-                'doctor_id'         => auth()->id(),
+                'doctor_id'         => auth()->id() ?? $appointment->doctor_id,
                 'prescription_code' => $prescriptionCode,
                 'prescription_date' => now()->toDateString(),
                 'general_advice'    => $data['general_advice'] ?? null,
@@ -112,9 +121,12 @@ class ConsultationService
 
             // 7. Dispatch WebSocket events safely after commit
             $branchId = $queueItem->branch_id;
-            DB::afterCommit(function () use ($branchId) {
+            DB::afterCommit(function () use ($branchId, $invoice, $hasUnpaidInvoice) {
                 try {
                     event(new LiveQueueUpdated($branchId));
+                    if ($hasUnpaidInvoice && $invoice) {
+                        event(new InvoiceReadyForPayment($invoice));
+                    }
                 } catch (\Throwable $e) {
                     logger()->warning('WebSocket broadcast failed in completeConsultation: ' . $e->getMessage());
                 }

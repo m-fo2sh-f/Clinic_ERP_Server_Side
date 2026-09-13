@@ -16,5 +16,8 @@ class DatabaseSeeder extends Seeder
 
         // 2. Seed Medical Data (Drugs, Patients, Appointments, Queues, Prescriptions)
         $this->call(MedicalDataSeeder::class);
+
+        // 3. Seed Financial Module Services & Branch Catalogs
+        $this->call(FinancialModuleSeeder::class);
     }
 }

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
 use App\Http\Controllers\Api\V1\Clinic\PatientController;
 use App\Http\Controllers\Api\V1\Clinic\ConsultationController;
 use App\Http\Controllers\Api\V1\Clinic\BranchController;
+use App\Http\Controllers\Api\V1\Clinic\BillingController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -65,6 +66,20 @@ Route::middleware([
                 Route::get('patients/search', [PatientController::class, 'search'])->middleware('throttle:60,1');
                 Route::get('patients/{id}/summary', [PatientController::class, 'summary']);
                 Route::apiResource('patients', PatientController::class);
+
+                // 💳 الفواتير والمدفوعات (Invoices & Billing)
+                Route::get('billing/services', [BillingController::class, 'services']);
+                Route::post('billing/services', [BillingController::class, 'storeService']);
+                Route::put('billing/services/{id}', [BillingController::class, 'updateService']);
+                Route::delete('billing/services/{id}', [BillingController::class, 'deleteService']);
+
+                Route::get('invoices/pending', [BillingController::class, 'pending']);
+                Route::get('invoices/appointment/{appointmentId}', [BillingController::class, 'forAppointment']);
+                Route::get('invoices', [BillingController::class, 'index']);
+                Route::get('invoices/{id}', [BillingController::class, 'show']);
+                Route::post('invoices/{id}/items', [BillingController::class, 'addItem']);
+                Route::delete('invoices/{id}/items/{itemId}', [BillingController::class, 'removeItem']);
+                Route::post('invoices/{id}/pay', [BillingController::class, 'pay']);
             });
         };
 

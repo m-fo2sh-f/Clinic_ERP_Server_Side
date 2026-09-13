@@ -19,6 +19,23 @@ class UpdateAppointmentRequest extends FormRequest
     }
 
     /**
+     * Normalize incoming datetime strings before validation runs.
+     * Accepts ISO 8601, HTML5 datetime-local (Y-m-d\TH:i), and standard SQL datetime formats.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('appointment_time') && is_string($this->appointment_time)) {
+            try {
+                $this->merge([
+                    'appointment_time' => \Carbon\Carbon::parse($this->appointment_time)->format('Y-m-d H:i:s'),
+                ]);
+            } catch (\Throwable $e) {
+                // Leave as-is so Laravel's validator catches invalid date formats cleanly
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -26,7 +43,7 @@ class UpdateAppointmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'appointment_time'       => 'sometimes|required|date_format:Y-m-d H:i:s',
+            'appointment_time'       => ['sometimes', 'required', 'date', 'date_format:Y-m-d H:i:s'],
             'branch_id'              => 'sometimes|required|exists:branches,id',
             'doctor_id'              => 'nullable|exists:users,id',
             'type'                   => ['sometimes', 'required', Rule::enum(AppointmentType::class)],

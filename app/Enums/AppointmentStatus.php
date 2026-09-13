@@ -7,6 +7,7 @@ enum AppointmentStatus: string
     case BOOKING           = 'booking';
     case CHECKED_IN        = 'checked_in';
     case UNDER_EXAMINATION = 'under_examination';
+    case PENDING_PAYMENT   = 'pending_payment';
     case COMPLETED         = 'completed';
     case NO_SHOW           = 'no_show';
     case CANCELLED         = 'canceled';

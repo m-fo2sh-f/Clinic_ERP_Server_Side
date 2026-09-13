@@ -55,4 +55,9 @@ class Patient extends Model
     {
         return $this->hasMany(LiveQueue::class);
     }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }

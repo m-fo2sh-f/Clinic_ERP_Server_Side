@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Services\Clinic\LiveQueueService;
 use App\Services\Clinic\PatientService;
+use App\Services\Clinic\BillingService;
 use App\Models\LiveQueue;
 use App\Helpers\ShiftHelper;
 
@@ -17,11 +18,16 @@ class AppointmentService
 {
     private LiveQueueService $liveQueueService;
     private PatientService $patientService;
+    private BillingService $billingService;
 
-    public function __construct(LiveQueueService $liveQueueService, PatientService $patientService)
-    {
+    public function __construct(
+        LiveQueueService $liveQueueService,
+        PatientService $patientService,
+        BillingService $billingService
+    ) {
         $this->liveQueueService = $liveQueueService;
-        $this->patientService = $patientService;
+        $this->patientService   = $patientService;
+        $this->billingService   = $billingService;
     }
 
     public function getAllAppointmentsForBranch(int|string $branchId, ?string $date = null, int|string|null $doctorId = null)
@@ -158,6 +164,9 @@ class AppointmentService
 
             $appointment->update(['status' => AppointmentStatus::CHECKED_IN->value]);
 
+            // Auto-create invoice with consultation fee snapshot
+            $this->billingService->createInvoiceForAppointment($appointment);
+
             $existingQueue = LiveQueue::where('appointment_id', $appointment->id)->first();
             if ($existingQueue) {
                 return $existingQueue;
@@ -188,6 +197,9 @@ class AppointmentService
                 'type'             => $data['type'] ?? 'check_up',
                 'status'           => AppointmentStatus::CHECKED_IN->value,
             ]);
+
+            // Auto-create invoice with consultation fee snapshot
+            $this->billingService->createInvoiceForAppointment($appointment);
 
             // 2. Insert patient into live operational queue
             return $this->liveQueueService->createNewPatientInQueue([

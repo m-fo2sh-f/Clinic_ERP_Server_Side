@@ -31,4 +31,13 @@ class Branch extends Model
         return $this->belongsToMany(User::class);
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function branchServices()
+    {
+        return $this->hasMany(BranchService::class);
+    }
 }

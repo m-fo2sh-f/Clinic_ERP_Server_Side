@@ -4,7 +4,9 @@ namespace App\Services\Clinic;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\LiveQueueStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Appointment;
+use App\Models\Invoice;
 use App\Models\LiveQueue;
 use Carbon\Carbon;
 use App\Helpers\ShiftHelper;
@@ -12,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use App\Events\QueueReordered;
 use App\Events\LiveQueueUpdated;
 use App\Events\NextPatientCalled;
+use App\Events\InvoiceReadyForPayment;
 
 class LiveQueueService
 {
@@ -94,6 +97,29 @@ class LiveQueueService
 
             // 🎯 المزامنة الذرية مع جدول الحجوزات الأساسي (SSOT)
             if ($queueItem->appointment_id) {
+                // Check if transitioning to completed with an unpaid invoice
+                if ($status === LiveQueueStatus::COMPLETED->value || $status === 'completed') {
+                    $invoice = Invoice::where('appointment_id', $queueItem->appointment_id)->first();
+                    $isPaid = $invoice && ($invoice->payment_status === PaymentStatus::PAID || $invoice->payment_status === PaymentStatus::PAID->value);
+                    if ($invoice && !$isPaid) {
+                        // Route through pending_payment instead of immediate completion
+                        Appointment::where('id', $queueItem->appointment_id)
+                            ->update(['status' => AppointmentStatus::PENDING_PAYMENT->value]);
+                        app(\App\Services\Clinic\BillingService::class)->markInvoiceReadyForPayment($invoice);
+
+                        $branchId = $queueItem->branch_id;
+                        DB::afterCommit(function () use ($branchId) {
+                            try {
+                                event(new LiveQueueUpdated($branchId));
+                            } catch (\Throwable $e) {
+                                logger()->warning('WebSocket broadcast failed in updateStatus: ' . $e->getMessage());
+                            }
+                        });
+
+                        return $queueItem->load('patient');
+                    }
+                }
+
                 $mappedStatus = match ($status) {
                     LiveQueueStatus::COMPLETED->value         => AppointmentStatus::COMPLETED->value,
                     LiveQueueStatus::UNDER_EXAMINATION->value => AppointmentStatus::UNDER_EXAMINATION->value,
@@ -143,8 +169,22 @@ class LiveQueueService
                 $currentExamining->update(['status' => LiveQueueStatus::COMPLETED->value]);
 
                 if ($currentExamining->appointment_id) {
-                    Appointment::where('id', $currentExamining->appointment_id)
-                        ->update(['status' => AppointmentStatus::COMPLETED->value]);
+                    $prevAppt = Appointment::with('invoice')->find($currentExamining->appointment_id);
+                    if ($prevAppt) {
+                        $invoice = $prevAppt->invoice;
+                        if ($invoice && ($invoice->payment_status !== PaymentStatus::PAID && $invoice->payment_status?->value !== PaymentStatus::PAID->value)) {
+                            $prevAppt->update(['status' => AppointmentStatus::PENDING_PAYMENT->value]);
+                            DB::afterCommit(function () use ($invoice) {
+                                try {
+                                    event(new InvoiceReadyForPayment($invoice));
+                                } catch (\Throwable $e) {
+                                    logger()->warning('WebSocket broadcast failed for pending payment in callNextPatient: ' . $e->getMessage());
+                                }
+                            });
+                        } else {
+                            $prevAppt->update(['status' => AppointmentStatus::COMPLETED->value]);
+                        }
+                    }
                 }
             }
 

@@ -72,4 +72,9 @@ class Appointment extends Model
     {
         return $this->hasOne(ClinicSetting::class);
     }
+
+    public function invoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class);
+    }
 }
