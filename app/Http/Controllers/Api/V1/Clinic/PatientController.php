@@ -52,16 +52,18 @@ class PatientController extends Controller
      */
     public function show(Request $request, string $id): JsonResponse
     {
+        $branchId = $request->query('branch_id');
         $user = $request->user();
+
         if ($user && $user->hasRole('receptionist') && !$user->hasAnyRole(['doctor', 'clinic_owner', 'tenant_admin'])) {
-            $patient = Patient::findOrFail($id);
+            $patient = $this->patientService->show($id, $branchId);
             return response()->json([
                 'status' => 'success',
                 'data'   => new PatientResource($patient),
             ]);
         }
 
-        $patient = $this->consultationService->getPatientHistory($id);
+        $patient = $this->consultationService->getPatientHistory($id, $branchId);
 
         return response()->json([
             'status' => 'success',
@@ -155,9 +157,10 @@ class PatientController extends Controller
     /**
      * GET /patients/{id}/history — Patient medical file for Doctor Dashboard.
      */
-    public function getHistory(string $id): JsonResponse
+    public function getHistory(Request $request, string $id): JsonResponse
     {
-        $patient = $this->consultationService->getPatientHistory($id);
+        $branchId = $request->query('branch_id');
+        $patient = $this->consultationService->getPatientHistory($id, $branchId);
 
         return response()->json([
             'status' => 'success',

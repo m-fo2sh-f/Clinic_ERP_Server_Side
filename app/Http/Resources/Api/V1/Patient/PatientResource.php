@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\V1\Patient;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\Api\V1\Appointment\AppointmentResource;
 
 class PatientResource extends JsonResource
 {
@@ -15,6 +16,17 @@ class PatientResource extends JsonResource
     public function toArray(Request $request): array
     {
         $isClinicalStaff = $request->user()?->hasAnyRole(['doctor', 'clinic_owner']);
+
+        $totalCompleted = $this->total_completed_count !== null
+            ? (int) $this->total_completed_count
+            : (int) ($this->completed_appointments_count ?? $this->appointments()->where('status', 'completed')->count());
+
+        $branchId = $request->query('branch_id');
+        $branchCompleted = $this->branch_completed_count !== null
+            ? (int) $this->branch_completed_count
+            : (int) ($branchId
+                ? $this->appointments()->where('status', 'completed')->where('branch_id', $branchId)->count()
+                : $totalCompleted);
 
         return [
             'id'                           => $this->id,
@@ -29,9 +41,9 @@ class PatientResource extends JsonResource
             'allergies'                    => $this->when($isClinicalStaff, $this->allergies),
             'surgeries'                    => $this->when($isClinicalStaff, $this->surgeries),
             'medical_history'              => $this->when($isClinicalStaff, $this->medical_history),
-            'total_completed_count'        => (int) ($this->total_completed_count ?? 0),
-            'branch_completed_count'       => (int) ($this->branch_completed_count ?? 0),
-            'completed_appointments_count' => (int) ($this->completed_appointments_count ?? $this->total_completed_count ?? 0),
+            'total_completed_count'        => $totalCompleted,
+            'branch_completed_count'       => $branchCompleted,
+            'completed_appointments_count' => $totalCompleted,
             'created_at'                   => $this->created_at?->toIso8601String(),
         ];
     }

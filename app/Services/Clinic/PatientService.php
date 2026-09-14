@@ -127,11 +127,22 @@ class PatientService
     /**
      * Get complete details and appointment history for a patient.
      */
-    public function show(string $id): Patient
+    public function show(string $id, ?string $branchId = null): Patient
     {
-        return Patient::withCount(['appointments as completed_appointments_count' => function ($q) {
-            $q->where('status', 'completed');
-        }])
+        return Patient::withCount([
+            'appointments as total_completed_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
+            'appointments as branch_completed_count' => function ($q) use ($branchId) {
+                $q->where('status', 'completed');
+                if (!empty($branchId)) {
+                    $q->where('branch_id', $branchId);
+                }
+            },
+            'appointments as completed_appointments_count' => function ($q) {
+                $q->where('status', 'completed');
+            }
+        ])
         ->with([
             'appointments' => function ($query) {
                 $query->orderBy('appointment_time', 'desc')->with('branch');

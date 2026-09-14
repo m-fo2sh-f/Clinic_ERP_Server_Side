@@ -147,9 +147,10 @@ class ConsultationService
      * Get enriched patient history with prescriptions for the Doctor Dashboard.
      *
      * @param  string  $patientId
+     * @param  string|null  $branchId
      * @return Patient
      */
-    public function getPatientHistory(string $patientId): Patient
+    public function getPatientHistory(string $patientId, ?string $branchId = null): Patient
     {
         return Patient::withCount([
             'appointments as completed_appointments_count' => function ($q) {
@@ -157,6 +158,12 @@ class ConsultationService
             },
             'appointments as total_completed_count' => function ($q) {
                 $q->where('status', 'completed');
+            },
+            'appointments as branch_completed_count' => function ($q) use ($branchId) {
+                $q->where('status', 'completed');
+                if (!empty($branchId)) {
+                    $q->where('branch_id', $branchId);
+                }
             },
         ])
         ->with([

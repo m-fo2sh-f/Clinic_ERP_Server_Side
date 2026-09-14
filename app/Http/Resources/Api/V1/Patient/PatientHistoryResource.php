@@ -15,6 +15,14 @@ class PatientHistoryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $totalCompleted = (int) ($this->total_completed_count ?? $this->completed_appointments_count ?? $this->appointments()->where('status', 'completed')->count());
+        $branchId = $request->query('branch_id');
+        $branchCompleted = $this->branch_completed_count !== null
+            ? (int) $this->branch_completed_count
+            : (int) ($branchId
+                ? $this->appointments()->where('status', 'completed')->where('branch_id', $branchId)->count()
+                : $totalCompleted);
+
         return [
             'id'                           => $this->id,
             'medical_number'               => $this->medical_number,
@@ -28,9 +36,9 @@ class PatientHistoryResource extends JsonResource
             'allergies'                    => $this->allergies,
             'surgeries'                    => $this->surgeries,
             'medical_history'              => $this->medical_history,
-            'total_completed_count'        => (int) ($this->total_completed_count ?? $this->completed_appointments_count ?? 0),
-            'branch_completed_count'       => (int) ($this->branch_completed_count ?? 0),
-            'completed_appointments_count' => (int) ($this->completed_appointments_count ?? 0),
+            'total_completed_count'        => $totalCompleted,
+            'branch_completed_count'       => $branchCompleted,
+            'completed_appointments_count' => $totalCompleted,
             'appointments'                 => AppointmentResource::collection($this->whenLoaded('appointments')),
             'consultations'                => AppointmentResource::collection($this->whenLoaded('appointments')),
             'created_at'                   => $this->created_at?->toIso8601String(),
