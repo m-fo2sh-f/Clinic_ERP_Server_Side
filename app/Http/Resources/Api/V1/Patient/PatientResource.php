@@ -44,6 +44,21 @@ class PatientResource extends JsonResource
             'total_completed_count'        => $totalCompleted,
             'branch_completed_count'       => $branchCompleted,
             'completed_appointments_count' => $totalCompleted,
+            'appointments'                 => $this->whenLoaded('appointments', function () {
+                return $this->appointments->map(function ($appt) {
+                    $branchName = $appt->relationLoaded('branch') && $appt->branch
+                        ? $appt->branch->name
+                        : ($appt->branch_name ?? null);
+
+                    return [
+                        'id'               => $appt->id,
+                        'appointment_time' => $appt->appointment_time?->toIso8601String() ?? (string) $appt->appointment_time,
+                        'status'           => $appt->status instanceof \BackedEnum ? $appt->status->value : $appt->status,
+                        'branch_name'      => $branchName,
+                        'type'             => $appt->type instanceof \BackedEnum ? $appt->type->value : $appt->type,
+                    ];
+                });
+            }),
             'created_at'                   => $this->created_at?->toIso8601String(),
         ];
     }

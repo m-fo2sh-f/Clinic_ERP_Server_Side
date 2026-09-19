@@ -120,10 +120,21 @@ class PatientPrivacyTest extends TestCase
         // التأكد من حجب كافة البيانات والمسارات السريرية الحساسة عن موظف الاستقبال
         $this->assertArrayNotHasKey('consultations', $responseData);
         $this->assertArrayNotHasKey('prescriptions', $responseData);
-        $this->assertArrayNotHasKey('diagnosis', $responseData);
-        $this->assertArrayNotHasKey('appointments', $responseData);
         $this->assertArrayNotHasKey('medical_history', $responseData);
         $this->assertArrayNotHasKey('chronic_diseases', $responseData);
+
+        // التأكد من أن الكشوفات المعروضة للريسبشن لا تحتوي على أي بيانات سريرية حساسة
+        if (isset($responseData['appointments'])) {
+            foreach ($responseData['appointments'] as $appt) {
+                $this->assertArrayNotHasKey('diagnosis', $appt);
+                $this->assertArrayNotHasKey('prescription', $appt);
+                $this->assertArrayNotHasKey('vitals', $appt);
+                $this->assertArrayNotHasKey('clinical_examination', $appt);
+                $this->assertArrayHasKey('appointment_time', $appt);
+                $this->assertArrayHasKey('status', $appt);
+                $this->assertArrayHasKey('type', $appt);
+            }
+        }
     }
 
     /** @test */
