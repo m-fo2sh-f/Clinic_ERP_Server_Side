@@ -18,8 +18,8 @@ class QueueBranchRequest extends FormRequest
 
         $branchId = $this->input('branch_id') ?? $this->query('branch_id');
 
-        // Central tenant admins have full access
-        if ($user->hasRole('tenant_admin') || $user->hasRole('clinic_owner')) {
+        // Clinic owner has full access across all branches
+        if ($user->hasRole('clinic_owner')) {
             return true;
         }
 

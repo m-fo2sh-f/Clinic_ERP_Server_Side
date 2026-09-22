@@ -129,7 +129,7 @@ return [
 
     'cookie' => env(
         'SESSION_COOKIE',
-        Str::slug((string) env('APP_NAME', 'laravel')).'-session'
+        Str::slug((string) env('APP_NAME', 'healios')) . '_tenant_session'
     ),
 
     /*
@@ -156,14 +156,7 @@ return [
     |
     */
 
-    'domain' => (function () {
-        $host = isset($_SERVER['HTTP_HOST']) ? explode(':', $_SERVER['HTTP_HOST'])[0] : null;
-        if (!$host || $host === 'localhost' || $host === '127.0.0.1' || str_ends_with($host, '.localhost')) {
-            return null;
-        }
-        return env('SESSION_DOMAIN');
-    })(),
-
+    'domain' => env('SESSION_DOMAIN', null),
     /*
     |--------------------------------------------------------------------------
     | HTTPS Only Cookies

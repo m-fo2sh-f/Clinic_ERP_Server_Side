@@ -56,6 +56,17 @@ class AppointmentController extends Controller
         ], 201);
     }
 
+    public function show(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $appointment = Appointment::with(['patient', 'doctor', 'branch', 'prescription'])->findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $appointment->branch_id);
+
+        return response()->json([
+            "status" => "success",
+            "data"   => new AppointmentResource($appointment),
+        ], 200);
+    }
+
     public function update(UpdateAppointmentRequest $request, string $id)
     {
         $existing = Appointment::findOrFail($id);

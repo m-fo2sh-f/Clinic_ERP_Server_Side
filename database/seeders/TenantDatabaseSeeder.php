@@ -49,14 +49,12 @@ class TenantDatabaseSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
 
-        // 2. إنشاء الأدوار
+        // 2. إنشاء الأدوار الثلاثة المعتمدة
         $ownerRole = Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'web']);
-        $tenantAdminRole = Role::firstOrCreate(['name' => 'tenant_admin', 'guard_name' => 'web']);
         $doctorRole = Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
         $receptionistRole = Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
 
         $ownerRole->syncPermissions(Permission::where('guard_name', 'web')->get());
-        $tenantAdminRole->syncPermissions(Permission::where('guard_name', 'web')->get());
 
         $doctorRole->syncPermissions([
             'appointments.view',
@@ -142,7 +140,7 @@ class TenantDatabaseSeeder extends Seeder
             setPermissionsTeamId($tenantId);
         }
 
-        $owner->assignRole(['clinic_owner', 'tenant_admin']);
+        $owner->assignRole(['clinic_owner']);
         $owner->branches()->syncWithoutDetaching([$mainBranch->id]);
     }
 }

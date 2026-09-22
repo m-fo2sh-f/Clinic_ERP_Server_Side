@@ -30,8 +30,8 @@ class RolesAndUsersSeeder extends Seeder
         $viewPatients = Permission::firstOrCreate(['name' => 'view patients']);
 
         // 2️⃣ إنشاء الأدوار وتعيين الصلاحيات
-        $adminRole = Role::firstOrCreate(['name' => 'tenant_admin']);
-        $adminRole->givePermissionTo([$manageStaff, $manageBranches, $viewPatients]);
+        $ownerRole = Role::firstOrCreate(['name' => 'clinic_owner']);
+        $ownerRole->givePermissionTo([$manageStaff, $manageBranches, $viewPatients]);
 
         $doctorRole = Role::firstOrCreate(['name' => 'doctor']);
         $doctorRole->givePermissionTo([$viewPatients]);
@@ -59,7 +59,7 @@ class RolesAndUsersSeeder extends Seeder
             'password' => Hash::make('12345678'),
         ]);
         setPermissionsTeamId($tenant->id);
-        $mainDoctor->assignRole([$adminRole, $doctorRole]);
+        $mainDoctor->assignRole([$ownerRole, $doctorRole]);
         $mainDoctor->branches()->attach([$branchMaadi->id, $branchTagamoa->id]);
 
         // 5️⃣ إنشاء دكتور مساعد

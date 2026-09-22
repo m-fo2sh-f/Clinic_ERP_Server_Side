@@ -20,5 +20,7 @@ class DatabaseSeeder extends Seeder
                 'is_super_admin' => true,
             ]
         );
+
+        $this->call(UserTenantSeeder::class);
     }
 }

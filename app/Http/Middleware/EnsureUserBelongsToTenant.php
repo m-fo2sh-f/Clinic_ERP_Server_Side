@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserBelongsToTenant
@@ -16,6 +17,11 @@ class EnsureUserBelongsToTenant
         if (!$user) {
             return $next($request);
         }
+        
+        // تجاهل التحقق إذا كان المستخدم هو super_admin
+        if ((bool) ($user->is_super_admin ?? false)) {
+            return $next($request);
+        }
 
         $currentTenantId = function_exists('tenant') ? tenant('id') : null;
 
@@ -24,20 +30,22 @@ class EnsureUserBelongsToTenant
         }
 
         // 🎯 1. التحقق من التبعية المباشرة للتينانت أو من خلال الفروع
-        $isDirectTenantMember = !isset($user->tenant_id) || $user->tenant_id === $currentTenantId;
-        $hasBranchInTenant    = method_exists($user, 'branches') && $user->branches()->exists();
+        $isOwner = method_exists($user, 'hasRole') && $user->hasRole('clinic_owner');
 
-        if (!$isDirectTenantMember && !$hasBranchInTenant) {
+        // باقي الموظفين (أطباء واستقبال) لازم يكون عندهم فرع واحد على الأقل في هذه العيادة
+        $hasBranchInTenant = method_exists($user, 'branches') && $user->branches()->exists();
+
+       if (!$isOwner && !$hasBranchInTenant) {
+            // تسجيل خروج فوري لإنهاء الجلسة المسربة
+            if (Auth::guard('web')->check()) {
+                Auth::guard('web')->logout();
+            }
+
             return response()->json([
                 'status'  => 'error',
                 'code'    => 'TENANT_ACCESS_DENIED',
-                'message' => 'غير مصرح لك بالوصول لبيانات هذه العيادة.'
+                'message' => 'غير مصرح لك بالوصول لبيانات هذه العيادة، الحساب غير مربوط بأي فرع.'
             ], 403);
-        }
-
-        // 🎯 2. ضبط معرف الفريق الخاص بـ Spatie Permissions ليكون المعزل بالعين للتينانت الحالي
-        if (function_exists('setPermissionsTeamId')) {
-            setPermissionsTeamId($currentTenantId);
         }
 
         return $next($request);

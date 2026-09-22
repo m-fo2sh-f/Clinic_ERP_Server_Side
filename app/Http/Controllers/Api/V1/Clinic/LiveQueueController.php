@@ -95,7 +95,7 @@ class LiveQueueController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin', 'doctor'])) {
+        if (!$user->hasAnyRole(['receptionist', 'clinic_owner', 'doctor'])) {
             abort(403, 'غير مصرح لك بإعادة ترتيب طابور الانتظار.');
         }
 
@@ -108,7 +108,7 @@ class LiveQueueController extends Controller
         $this->authorizeBranchAccess($user, $request->branch_id);
 
         // If user is a doctor without receptionist/owner role, verify they are only reordering their own queue
-        if ($user->hasRole('doctor') && !$user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
+        if ($user->hasRole('doctor') && !$user->hasAnyRole(['receptionist', 'clinic_owner'])) {
             $otherDoctorItems = LiveQueue::whereIn('id', $request->ordered_ids)
                 ->where('doctor_id', '!=', $user->id)
                 ->whereNotNull('doctor_id')
@@ -147,7 +147,7 @@ class LiveQueueController extends Controller
         if ($user->hasRole('doctor')) {
             // Doctors must NEVER call patients for another doctor. Strictly bind doctor_id = $user->id.
             $doctorId = $user->id;
-        } elseif ($user->hasRole('clinic_owner') || $user->hasRole('tenant_admin')) {
+        } elseif ($user->hasRole('clinic_owner')) {
             // Clinic owner may specify doctor_id or default to authenticated user
             $doctorId = $validated['doctor_id'] ?? $user->id;
             if (!empty($validated['doctor_id'])) {

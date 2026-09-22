@@ -34,7 +34,7 @@ class NextPatientCalled implements ShouldBroadcastNow
     {
         return [
             new PrivateChannel('live-queue.' . $this->branchId),
-            new Channel('live-queue.' . $this->branchId),
+            
         ];
     }
 

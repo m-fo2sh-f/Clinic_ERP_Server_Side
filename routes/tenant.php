@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
-use App\Http\Middleware\EnsureUserBelongsToTenant;
 
 use App\Http\Controllers\Api\V1\Clinic\AppointmentController;
 use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
@@ -15,7 +14,6 @@ use App\Http\Controllers\Api\V1\Clinic\BranchController;
 use App\Http\Controllers\Api\V1\Clinic\BillingController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use Illuminate\Support\Facades\Broadcast;
-
 
 Route::middleware([
     'web',
@@ -37,18 +35,22 @@ Route::middleware([
         // تسجيل الخروج وجلب البيانات الشخصية
         Route::post('/api/v1/logout', [AuthController::class, 'logout']);
         Route::get('/api/v1/me', [AuthController::class, 'me']);
+        Route::prefix('api/v1')->middleware('throttle:120,1')->group(function () {
+            // 👑 أ. روتات مالك العيادة فقط (Clinic Owner Only) - إدارة الكتالوج والأسعار
+            Route::middleware('role:clinic_owner')->group(function () {
+                Route::post('billing/services', [BillingController::class, 'storeService']);
+                Route::put('billing/services/{id}', [BillingController::class, 'updateService']);
+                Route::delete('billing/services/{id}', [BillingController::class, 'deleteService']);
+            });
 
-        // 🎯 الروتات المحمية حسب الـ Roles
-        $registerProtectedApiRoutes = function () {
-            Broadcast::routes(['middleware' => ['auth:sanctum']]);
-            // 🩺 أ. روتات خاصة بالدكتور ومالك العيادة فقط (Doctor & Clinic Owner Only)
+            // 🩺 ب. روتات خاصة بالدكتور ومالك العيادة فقط (Doctor & Clinic Owner Only)
             Route::middleware('role:doctor|clinic_owner')->group(function () {
                 Route::post('live-queues/next', [LiveQueueController::class, 'nextPatient']);
                 Route::get('patients/{id}/history', [PatientController::class, 'getHistory']);
                 Route::post('consultations/complete', [ConsultationController::class, 'complete']);
             });
 
-            // 📋 ب. روتات خاصة بالريسبشن والمالك والدكتور (Receptionist, Doctor & Clinic Owner)
+            // 📋 ج. روتات تشغيلية مشتركة (Receptionist, Doctor & Clinic Owner)
             Route::middleware('role:receptionist|doctor|clinic_owner')->group(function () {
                 // أطباء الفرع
                 Route::get('branches/{branchId}/doctors', [BranchController::class, 'doctors']);
@@ -67,12 +69,8 @@ Route::middleware([
                 Route::get('patients/{id}/summary', [PatientController::class, 'summary']);
                 Route::apiResource('patients', PatientController::class);
 
-                // 💳 الفواتير والمدفوعات (Invoices & Billing)
+                // 💳 الفواتير والمدفوعات التشغيلية (عرض الخدمات وإصدار الفواتير وتحصيلها)
                 Route::get('billing/services', [BillingController::class, 'services']);
-                Route::post('billing/services', [BillingController::class, 'storeService']);
-                Route::put('billing/services/{id}', [BillingController::class, 'updateService']);
-                Route::delete('billing/services/{id}', [BillingController::class, 'deleteService']);
-
                 Route::get('invoices/pending', [BillingController::class, 'pending']);
                 Route::get('invoices/appointment/{appointmentId}', [BillingController::class, 'forAppointment']);
                 Route::get('invoices', [BillingController::class, 'index']);
@@ -81,8 +79,6 @@ Route::middleware([
                 Route::delete('invoices/{id}/items/{itemId}', [BillingController::class, 'removeItem']);
                 Route::post('invoices/{id}/pay', [BillingController::class, 'pay']);
             });
-        };
-
-        Route::prefix('api/v1')->middleware('throttle:120,1')->group($registerProtectedApiRoutes);
+        });
     });
 });

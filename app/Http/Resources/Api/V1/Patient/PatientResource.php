@@ -4,7 +4,6 @@ namespace App\Http\Resources\Api\V1\Patient;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\Api\V1\Appointment\AppointmentResource;
 
 class PatientResource extends JsonResource
 {
@@ -15,18 +14,21 @@ class PatientResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $isClinicalStaff = $request->user()?->hasAnyRole(['doctor', 'clinic_owner']);
+        $user = $request->user();
+        $isClinicalStaff = $user && method_exists($user, 'hasAnyRole') 
+            && $user->hasAnyRole(['doctor', 'clinic_owner']);
 
-        $totalCompleted = $this->total_completed_count !== null
-            ? (int) $this->total_completed_count
-            : (int) ($this->completed_appointments_count ?? $this->appointments()->where('status', 'completed')->count());
+        // 🚀 صفر كويريز: قراءة العد من السمات المحسوبة مسبقاً (withCount) دون استعلام الـ DB
+        $totalCompleted = (int) (
+            $this->total_completed_count 
+            ?? $this->completed_appointments_count 
+            ?? 0
+        );
 
-        $branchId = $request->query('branch_id');
-        $branchCompleted = $this->branch_completed_count !== null
-            ? (int) $this->branch_completed_count
-            : (int) ($branchId
-                ? $this->appointments()->where('status', 'completed')->where('branch_id', $branchId)->count()
-                : $totalCompleted);
+        $branchCompleted = (int) (
+            $this->branch_completed_count 
+            ?? $totalCompleted
+        );
 
         return [
             'id'                           => $this->id,
@@ -37,13 +39,18 @@ class PatientResource extends JsonResource
             'age'                          => $this->age,
             'gender'                       => $this->gender,
             'blood_group'                  => $this->blood_group,
+
+            // 🩺 حقول التاريخ الطبي والتشخيص تظهر للأطباء والمالك فقط
             'chronic_diseases'             => $this->when($isClinicalStaff, $this->chronic_diseases),
             'allergies'                    => $this->when($isClinicalStaff, $this->allergies),
             'surgeries'                    => $this->when($isClinicalStaff, $this->surgeries),
             'medical_history'              => $this->when($isClinicalStaff, $this->medical_history),
+
             'total_completed_count'        => $totalCompleted,
             'branch_completed_count'       => $branchCompleted,
             'completed_appointments_count' => $totalCompleted,
+
+            // يتم تضمين المواعيد فقط في حال تم تحميلها مسبقاً (Eager Loaded)
             'appointments'                 => $this->whenLoaded('appointments', function () {
                 return $this->appointments->map(function ($appt) {
                     $branchName = $appt->relationLoaded('branch') && $appt->branch

@@ -55,7 +55,11 @@ class PatientController extends Controller
         $branchId = $request->query('branch_id');
         $user = $request->user();
 
-        if ($user && $user->hasRole('receptionist') && !$user->hasAnyRole(['doctor', 'clinic_owner', 'tenant_admin'])) {
+        if ($branchId) {
+            $this->authorizeBranchAccess($user, $branchId);
+        }
+
+        if ($user && $user->hasRole('receptionist') && !$user->hasAnyRole(['doctor', 'clinic_owner'])) {
             $patient = $this->patientService->show($id, $branchId);
             return response()->json([
                 'status' => 'success',
@@ -96,8 +100,8 @@ class PatientController extends Controller
             'branch_id'        => 'nullable|exists:branches,id',
         ];
 
-        // 📋 3. قصر تعديل الاسم والهاتف على الريسبشن وأدمن العيادة فقط
-        if ($request->user()->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
+        // 📋 3. قصر تعديل الاسم والهاتف على الريسبشن ومالك العيادة فقط
+        if ($request->user()->hasAnyRole(['receptionist', 'clinic_owner'])) {
             $rules['name']  = 'sometimes|required|string|max:255';
             $rules['phone'] = 'sometimes|required|string|max:50';
         }

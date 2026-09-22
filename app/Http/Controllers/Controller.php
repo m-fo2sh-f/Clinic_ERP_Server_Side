@@ -14,7 +14,7 @@ abstract class Controller
             abort(401, 'Unauthenticated.');
         }
 
-        if ($user->hasRole('clinic_owner') || $user->hasRole('tenant_admin')) {
+        if ($user->hasRole('clinic_owner')) {
             return;
         }
 
