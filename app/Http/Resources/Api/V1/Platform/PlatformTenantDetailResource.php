@@ -22,16 +22,23 @@ class PlatformTenantDetailResource extends JsonResource
             ? $this->domains->first()?->domain
             : $this->domains()->first()?->domain;
 
-        $branches = Branch::where('tenant_id', $this->id)->get();
-        $totalAppointments = Appointment::where('tenant_id', $this->id)->count();
-        $totalPatients = Patient::where('tenant_id', $this->id)->count();
-        
-        // Count doctors assigned to this tenant
-        $totalDoctors = User::where('tenant_id', $this->id)
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'doctor');
-            })
-            ->count();
+        try {
+            [$branches, $totalAppointments, $totalPatients, $totalDoctors] = $this->run(function () {
+                $branches = Branch::all();
+                $appointments = Appointment::count();
+                $patients = Patient::count();
+                $doctors = User::whereHas('roles', function ($query) {
+                    $query->where('name', 'doctor');
+                })->count();
+
+                return [$branches, $appointments, $patients, $doctors];
+            });
+        } catch (\Throwable) {
+            $branches = collect([]);
+            $totalAppointments = 0;
+            $totalPatients = 0;
+            $totalDoctors = 0;
+        }
 
         return [
             'id'                       => $this->id,

@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('prescription_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->foreignUuid('prescription_id')->constrained('prescriptions')->cascadeOnDelete();
             $table->foreignUuid('drug_id')->nullable()->constrained('drugs')->nullOnDelete();
             $table->string('drug_name');
@@ -21,9 +20,8 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->index(['tenant_id', 'prescription_id', 'sort_order'], 'idx_rx_items_tenant_prescription_order');
-            $table->index(['tenant_id', 'drug_id'], 'idx_rx_items_tenant_drug');
+            $table->index(['prescription_id', 'sort_order'], 'idx_rx_items_order');
+            $table->index('drug_id', 'idx_rx_items_drug');
         });
     }
 

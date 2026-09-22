@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('invoice_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->foreignUuid('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignUuid('service_id')->nullable()->constrained('services')->nullOnDelete();
             $table->string('item_name');
@@ -19,8 +18,7 @@ return new class extends Migration
             $table->decimal('total', 10, 2);
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->index(['tenant_id', 'invoice_id'], 'idx_invoice_items_tenant_inv');
+            $table->index('invoice_id', 'idx_invoice_items_inv');
         });
     }
 

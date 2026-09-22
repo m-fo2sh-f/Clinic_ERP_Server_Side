@@ -27,17 +27,11 @@ class UpdateTenantUserRequest extends FormRequest
 
         return [
             'name'         => ['required', 'string', 'max:255'],
-            'email'        => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'email'        => ['required', 'email', 'max:255'],
             'roles'        => ['required', 'array', 'min:1'],
-            'roles.*'      => ['required', 'string', Rule::exists('roles', 'name')],
+            'roles.*'      => ['required', 'string'],
             'branch_ids'   => ['required', 'array', 'min:1'],
-            'branch_ids.*' => [
-                'required',
-                'string',
-                Rule::exists('branches', 'id')->where(function ($query) use ($tenantId) {
-                    $query->where('tenant_id', $tenantId);
-                }),
-            ],
+            'branch_ids.*' => ['required'],
         ];
     }
 }

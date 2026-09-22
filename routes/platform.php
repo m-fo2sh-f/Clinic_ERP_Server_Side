@@ -37,10 +37,9 @@ Route::prefix('api/v1/platform')
         Route::get('/metrics', [PlatformMetricsController::class, 'index']);
 
         // Platform Tenants Management
-        Route::get('/tenants', [PlatformTenantController::class, 'index']);
-        Route::get('/tenants/{id}', [PlatformTenantController::class, 'show']);
         Route::get('/tenants/{id}/users', [PlatformTenantController::class, 'users']);
         Route::post('/tenants/{id}/status', [PlatformTenantController::class, 'toggleStatus']);
+        Route::apiResource('tenants', PlatformTenantController::class);
 
         // Platform Tenant Impersonation
         Route::post('/tenants/{id}/impersonate', [PlatformImpersonationController::class, 'impersonate']);

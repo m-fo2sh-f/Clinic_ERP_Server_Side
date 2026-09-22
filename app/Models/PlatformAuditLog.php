@@ -11,6 +11,7 @@ class PlatformAuditLog extends Model
     use HasFactory;
 
     public $timestamps = false;
+    protected $connection = 'mysql';
 
     protected $fillable = [
         'super_admin_id',

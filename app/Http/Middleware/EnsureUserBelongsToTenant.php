@@ -24,8 +24,8 @@ class EnsureUserBelongsToTenant
         }
 
         // 🎯 1. التحقق من التبعية المباشرة للتينانت أو من خلال الفروع
-        $isDirectTenantMember = isset($user->tenant_id) && $user->tenant_id === $currentTenantId;
-        $hasBranchInTenant    = method_exists($user, 'branches') && $user->branches()->where('branches.tenant_id', $currentTenantId)->exists();
+        $isDirectTenantMember = !isset($user->tenant_id) || $user->tenant_id === $currentTenantId;
+        $hasBranchInTenant    = method_exists($user, 'branches') && $user->branches()->exists();
 
         if (!$isDirectTenantMember && !$hasBranchInTenant) {
             return response()->json([

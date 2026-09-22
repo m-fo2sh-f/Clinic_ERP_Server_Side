@@ -90,19 +90,12 @@ class ConsultationService
 
             // 5. Create PrescriptionItem records via Eloquent relationship
             if (!empty($data['medications'])) {
-                throw_if(
-                    empty($prescription->tenant_id),
-                    \RuntimeException::class,
-                    'Tenant context missing for prescription.'
-                );
-
                 $items = [];
                 foreach ($data['medications'] as $index => $med) {
                     $dose = $med['dosage'] ?? $med['dose'] ?? '';
                     $instruction = $med['instructions'] ?? $med['instruction'] ?? null;
 
                     $items[] = [
-                        'tenant_id'   => $prescription->tenant_id,
                         'drug_id'     => $med['drug_id'] ?? null,
                         'drug_name'   => $med['name'],
                         'dose'        => $dose,

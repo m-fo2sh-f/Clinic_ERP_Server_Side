@@ -17,82 +17,44 @@ class PlatformTenantStaffService
      */
     public function updateUser(string $tenantId, string $userId, array $data, User $superAdmin, Request $request): User
     {
-        // 1. Verify tenant existence
-        Tenant::findOrFail($tenantId);
+        $tenant = Tenant::findOrFail($tenantId);
 
-        // 2. Locate user and verify association with target tenant
-        $user = User::where(function ($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId)
-              ->orWhereHas('branches', function ($branchQuery) use ($tenantId) {
-                  $branchQuery->where('branches.tenant_id', $tenantId);
-              });
-        })->findOrFail($userId);
+        return $tenant->run(function () use ($tenantId, $userId, $data, $superAdmin, $request) {
+            $user = User::findOrFail($userId);
 
-        // 3. Anti-IDOR: Verify all branch IDs strictly belong to this tenant
-        $branchIds = $data['branch_ids'] ?? [];
-        $validBranchesCount = Branch::where('tenant_id', $tenantId)
-            ->whereIn('id', $branchIds)
-            ->count();
+            $branchIds = $data['branch_ids'] ?? [];
+            $validBranchesCount = Branch::whereIn('id', $branchIds)->count();
 
-        if ($validBranchesCount !== count(array_unique($branchIds))) {
-            abort(422, 'واحد أو أكثر من الفروع المحددة لا تنتمي إلى هذا المستأجر.');
-        }
-
-        // 4. Update demographic data
-        $user->update([
-            'name'  => $data['name'],
-            'email' => $data['email'],
-        ]);
-
-        // 5. Sync branch assignments
-        $user->branches()->sync($branchIds);
-
-        // 6. Scoped Spatie roles synchronization with immediate cleanup
-        $originalTeamId = function_exists('getPermissionsTeamId') ? getPermissionsTeamId() : null;
-        try {
-            if (function_exists('setPermissionsTeamId')) {
-                setPermissionsTeamId($tenantId);
+            if ($validBranchesCount !== count(array_unique($branchIds))) {
+                abort(422, 'واحد أو أكثر من الفروع المحددة لا تنتمي إلى هذا المستأجر.');
             }
-            $user->syncRoles($data['roles']);
-        } finally {
-            if (function_exists('setPermissionsTeamId')) {
-                setPermissionsTeamId($originalTeamId);
+
+            $user->update([
+                'name'  => $data['name'],
+                'email' => $data['email'],
+            ]);
+
+            $user->branches()->sync($branchIds);
+
+            if (isset($data['roles'])) {
+                $user->syncRoles($data['roles']);
             }
-        }
 
-        // 7. Write immutable audit log
-        PlatformAuditLog::create([
-            'super_admin_id' => $superAdmin->id,
-            'action'         => 'update_tenant_user',
-            'tenant_id'      => $tenantId,
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'created_at'     => now(),
-        ]);
+            PlatformAuditLog::create([
+                'super_admin_id' => $superAdmin->id,
+                'action'         => 'update_tenant_user',
+                'tenant_id'      => $tenantId,
+                'ip_address'     => $request->ip(),
+                'user_agent'     => $request->userAgent(),
+                'created_at'     => now(),
+            ]);
 
-        // 8. Hydrate tenant-scoped fields for response
-        $teamKey = config('permission.column_names.team_foreign_key', 'tenant_id');
-        $scopedRoles = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_type', User::class)
-            ->where('model_has_roles.model_id', $user->id)
-            ->where("model_has_roles.{$teamKey}", $tenantId)
-            ->pluck('roles.name')
-            ->unique()
-            ->values()
-            ->toArray();
+            $user->tenant_roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->toArray() : [];
+            $user->tenant_branches = $user->branches->pluck('name')->toArray();
+            $user->tenant_branch_ids = $user->branches->pluck('id')->toArray();
 
-        $user->tenant_roles = $scopedRoles;
-        $user->tenant_branches = $user->branches()
-            ->where('branches.tenant_id', $tenantId)
-            ->pluck('branches.name')
-            ->toArray();
-        $user->tenant_branch_ids = $user->branches()
-            ->where('branches.tenant_id', $tenantId)
-            ->pluck('branches.id')
-            ->toArray();
-
-        return $user;
+            return $user;
+        });
     }
 
     /**
@@ -100,26 +62,16 @@ class PlatformTenantStaffService
      */
     public function resetPassword(string $tenantId, string $userId, string $newPassword, User $superAdmin, Request $request): void
     {
-        // 1. Verify tenant existence
-        Tenant::findOrFail($tenantId);
+        $tenant = Tenant::findOrFail($tenantId);
 
-        // 2. Locate user and verify association with target tenant
-        $user = User::where(function ($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId)
-              ->orWhereHas('branches', function ($branchQuery) use ($tenantId) {
-                  $branchQuery->where('branches.tenant_id', $tenantId);
-              });
-        })->findOrFail($userId);
+        $tenant->run(function () use ($userId, $newPassword) {
+            $user = User::findOrFail($userId);
+            $user->update([
+                'password' => Hash::make($newPassword),
+            ]);
+            $user->tokens()->delete();
+        });
 
-        // 3. Update password hash
-        $user->update([
-            'password' => Hash::make($newPassword),
-        ]);
-
-        // 4. Revoke all active personal access tokens
-        $user->tokens()->delete();
-
-        // 5. Write immutable audit log
         PlatformAuditLog::create([
             'super_admin_id' => $superAdmin->id,
             'action'         => 'reset_tenant_user_password',

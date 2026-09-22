@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('prescriptions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->foreignUuid('appointment_id')->constrained('appointments')->cascadeOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
             $table->foreignId('doctor_id')->constrained('users')->cascadeOnDelete();
@@ -20,11 +19,9 @@ return new class extends Migration
             $table->date('follow_up_date')->nullable();
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-
-            $table->unique(['tenant_id', 'prescription_code'], 'uniq_rx_tenant_code');
-            $table->index(['tenant_id', 'patient_id', 'prescription_date'], 'idx_rx_tenant_patient_date');
-            $table->index(['tenant_id', 'doctor_id'], 'idx_rx_tenant_doctor');
+            $table->unique('prescription_code', 'uniq_rx_code');
+            $table->index(['patient_id', 'prescription_date'], 'idx_rx_patient_date');
+            $table->index('doctor_id', 'idx_rx_doctor');
         });
     }
 

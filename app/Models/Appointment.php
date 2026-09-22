@@ -7,13 +7,12 @@ use App\Enums\AppointmentType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Stancl\Tenancy\Database\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Appointment extends Model
 {
-    use BelongsToTenant, HasUuids, HasFactory;
+    use HasUuids, HasFactory;
 
     protected $fillable = [
         'branch_id',

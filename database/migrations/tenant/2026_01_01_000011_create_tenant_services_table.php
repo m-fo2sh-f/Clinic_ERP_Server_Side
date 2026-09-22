@@ -10,16 +10,14 @@ return new class extends Migration
     {
         Schema::create('services', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->string('name');
             $table->string('code')->nullable();
             $table->decimal('default_price', 10, 2)->default(0.00);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->index(['tenant_id', 'is_active'], 'idx_services_tenant_active');
-            $table->index(['tenant_id', 'name'], 'idx_services_tenant_name');
+            $table->index('is_active', 'idx_services_active');
+            $table->index('name', 'idx_services_name');
         });
     }
 

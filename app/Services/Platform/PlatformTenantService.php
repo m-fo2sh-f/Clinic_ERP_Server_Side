@@ -2,6 +2,7 @@
 
 namespace App\Services\Platform;
 
+use App\Models\Branch;
 use App\Models\PlatformAuditLog;
 use App\Models\Tenant;
 use App\Models\User;
@@ -34,7 +35,59 @@ class PlatformTenantService
             $query->where('is_active', $isActive);
         }
 
-        return $query->withCount('branches')->latest()->paginate($perPage);
+        $paginator = $query->latest()->paginate($perPage);
+
+        $paginator->getCollection()->transform(function ($tenant) {
+            try {
+                $tenant->branches_count = $tenant->run(fn () => Branch::count());
+            } catch (\Throwable) {
+                $tenant->branches_count = 0;
+            }
+            return $tenant;
+        });
+
+        return $paginator;
+    }
+
+    /**
+     * Create a new tenant with dedicated database, domain, and initial seeder.
+     */
+    public function createTenant(array $data, User $superAdmin, Request $request): Tenant
+    {
+        $subdomain = \Illuminate\Support\Str::slug($data['subdomain']);
+        $centralDomain = config('tenancy.central_domains')[0] ?? 'localhost';
+        $domainName = "{$subdomain}.{$centralDomain}";
+
+        // 1. Create Tenant (triggers Stancl pipeline: CreateDatabase, MigrateDatabase, SeedDatabase)
+        $tenant = Tenant::create([
+            'id'             => $subdomain,
+            'clinic_name'    => $data['clinic_name'],
+            'owner_email'    => $data['admin_email'],
+            'is_active'      => true,
+            'admin_name'     => $data['admin_name'],
+            'admin_password' => $data['admin_password'],
+            'phone'          => $data['phone'] ?? null,
+        ]);
+
+        // 2. Create Domain record
+        $tenant->domains()->create([
+            'domain' => $domainName,
+        ]);
+
+        // 3. Log Immutable Audit Record
+        PlatformAuditLog::create([
+            'super_admin_id' => $superAdmin->id,
+            'action'         => 'create_tenant',
+            'tenant_id'      => $tenant->id,
+            'ip_address'     => $request->ip(),
+            'user_agent'     => $request->userAgent(),
+            'created_at'     => now(),
+        ]);
+
+        $branches = $tenant->run(fn () => Branch::all());
+        $tenant->setRelation('branches', $branches);
+
+        return $tenant->load('domains');
     }
 
     /**
@@ -42,75 +95,34 @@ class PlatformTenantService
      */
     public function getTenantDetails(string $tenantId): Tenant
     {
-        return Tenant::with(['domains', 'branches'])->findOrFail($tenantId);
+        $tenant = Tenant::with('domains')->findOrFail($tenantId);
+        $branches = $tenant->run(fn () => Branch::all());
+        $tenant->setRelation('branches', $branches);
+        return $tenant;
     }
 
     /**
      * Get paginated tenant users with strictly scoped Spatie roles.
-     * (Technical Directive 1: strictly scoped to $tenantId).
      */
     public function getTenantUsers(string $tenantId, int $perPage = 15): LengthAwarePaginator
     {
-        // Find users attached via direct tenant_id or via branches belonging to this tenant
-        $paginator = User::query()
-            ->where(function ($q) use ($tenantId) {
-                $q->where('tenant_id', $tenantId)
-                  ->orWhereHas('branches', function ($branchQuery) use ($tenantId) {
-                      $branchQuery->where('branches.tenant_id', $tenantId);
-                  });
-            })
-            ->distinct()
-            ->paginate($perPage);
+        $tenant = Tenant::findOrFail($tenantId);
 
-        $teamKey = config('permission.column_names.team_foreign_key', 'tenant_id');
+        return $tenant->run(function () use ($perPage) {
+            $paginator = User::with('branches')->latest()->paginate($perPage);
 
-        // Map strictly tenant-scoped roles and branches
-        $paginator->getCollection()->transform(function ($user) use ($tenantId, $teamKey) {
-            // 🛡️ Technical Directive 1: Set permissions team id to current tenant, read roles, reset to null
-            $originalTeamId = function_exists('getPermissionsTeamId') ? getPermissionsTeamId() : null;
-            
-            if (function_exists('setPermissionsTeamId')) {
-                setPermissionsTeamId($tenantId);
-            }
+            $paginator->getCollection()->transform(function ($user) {
+                $user->tenant_roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->toArray() : [];
+                $user->tenant_branches = $user->branches->pluck('name')->toArray();
+                $user->tenant_branch_ids = $user->branches->pluck('id')->toArray();
+                $user->formatted_created_at = $user->created_at?->toIso8601String();
+                $user->setConnection(config('database.default', 'mysql'));
 
-            // Direct DB fallback query on model_has_roles to guarantee team isolation
-            $scopedRoles = DB::table('model_has_roles')
-                ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-                ->where('model_has_roles.model_type', User::class)
-                ->where('model_has_roles.model_id', $user->id)
-                ->where("model_has_roles.{$teamKey}", $tenantId)
-                ->pluck('roles.name')
-                ->unique()
-                ->values()
-                ->toArray();
+                return $user;
+            });
 
-            // If empty, also check user relation if Spatie uses team context
-            if (empty($scopedRoles) && method_exists($user, 'getRoleNames')) {
-                $scopedRoles = $user->getRoleNames()->toArray();
-            }
-
-            if (function_exists('setPermissionsTeamId')) {
-                setPermissionsTeamId($originalTeamId);
-            }
-
-            $userBranches = $user->branches()
-                ->where('branches.tenant_id', $tenantId)
-                ->pluck('branches.name')
-                ->toArray();
-
-            $userBranchIds = $user->branches()
-                ->where('branches.tenant_id', $tenantId)
-                ->pluck('branches.id')
-                ->toArray();
-
-            $user->tenant_roles = $scopedRoles;
-            $user->tenant_branches = $userBranches;
-            $user->tenant_branch_ids = $userBranchIds;
-
-            return $user;
+            return $paginator;
         });
-
-        return $paginator;
     }
 
     /**
@@ -133,5 +145,53 @@ class PlatformTenantService
         ]);
 
         return $tenant;
+    }
+
+    /**
+     * Update tenant clinic details.
+     */
+    public function updateTenant(string $tenantId, array $data, User $superAdmin, Request $request): Tenant
+    {
+        $tenant = Tenant::findOrFail($tenantId);
+
+        if (isset($data['clinic_name'])) {
+            $tenant->clinic_name = $data['clinic_name'];
+        }
+
+        if (isset($data['is_active'])) {
+            $tenant->is_active = (bool) $data['is_active'];
+        }
+
+        $tenant->save();
+
+        PlatformAuditLog::create([
+            'super_admin_id' => $superAdmin->id,
+            'action'         => 'update_tenant',
+            'tenant_id'      => $tenant->id,
+            'ip_address'     => $request->ip(),
+            'user_agent'     => $request->userAgent(),
+            'created_at'     => now(),
+        ]);
+
+        return $tenant;
+    }
+
+    /**
+     * Delete tenant and trigger automated database cleanup pipeline.
+     */
+    public function deleteTenant(string $tenantId, User $superAdmin, Request $request): void
+    {
+        $tenant = Tenant::findOrFail($tenantId);
+
+        PlatformAuditLog::create([
+            'super_admin_id' => $superAdmin->id,
+            'action'         => 'delete_tenant',
+            'tenant_id'      => $tenant->id,
+            'ip_address'     => $request->ip(),
+            'user_agent'     => $request->userAgent(),
+            'created_at'     => now(),
+        ]);
+
+        $tenant->delete();
     }
 }

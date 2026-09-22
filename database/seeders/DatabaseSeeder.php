@@ -7,17 +7,18 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed the central application's database.
      */
     public function run(): void
     {
-        // 1. Seed Multi-Tenant Users, Roles & Dedicated Branches
-        $this->call(UserTenantSeeder::class);
-
-        // 2. Seed Medical Data (Drugs, Patients, Appointments, Queues, Prescriptions)
-        $this->call(MedicalDataSeeder::class);
-
-        // 3. Seed Financial Module Services & Branch Catalogs
-        $this->call(FinancialModuleSeeder::class);
+        // 👑 GLOBAL PLATFORM SUPER ADMIN
+        \App\Models\User::updateOrCreate(
+            ['email' => 'admin@platform.test'],
+            [
+                'name' => 'Platform Super Admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('12345678'),
+                'is_super_admin' => true,
+            ]
+        );
     }
 }

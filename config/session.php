@@ -156,7 +156,13 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => (function () {
+        $host = isset($_SERVER['HTTP_HOST']) ? explode(':', $_SERVER['HTTP_HOST'])[0] : null;
+        if (!$host || $host === 'localhost' || $host === '127.0.0.1' || str_ends_with($host, '.localhost')) {
+            return null;
+        }
+        return env('SESSION_DOMAIN');
+    })(),
 
     /*
     |--------------------------------------------------------------------------

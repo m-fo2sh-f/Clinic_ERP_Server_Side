@@ -152,7 +152,6 @@ class LiveQueueController extends Controller
             $doctorId = $validated['doctor_id'] ?? $user->id;
             if (!empty($validated['doctor_id'])) {
                 $doctorUser = \App\Models\User::where('id', $validated['doctor_id'])
-                    ->where('tenant_id', $user->tenant_id)
                     ->first();
 
                 if (!$doctorUser || !$doctorUser->branches()->where('branches.id', $validated['branch_id'])->exists()) {

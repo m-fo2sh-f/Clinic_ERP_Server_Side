@@ -159,14 +159,10 @@ class PatientService
     {
         $tenantId = $tenantId ?? (function_exists('tenant') ? tenant('id') : null);
 
-        return DB::transaction(function () use ($tenantId) {
+        return DB::transaction(function () {
             $query = Patient::query();
 
-            if (!empty($tenantId)) {
-                $query->where('tenant_id', $tenantId);
-            }
-
-            // 🎯 استعلام فوري يعتمد على الفهرس idx_patients_tenant_mrn_seq بدون فحص نصوص
+            // 🎯 استعلام فوري يعتمد على الفهرس idx_patients_mrn_seq بدون فحص نصوص
             $maxSequence = $query->lockForUpdate()->max('mrn_sequence') ?? 10000;
             $nextSequence = $maxSequence + 1;
             $mrnCode = 'MRN-' . str_pad($nextSequence, 5, '0', STR_PAD_LEFT);

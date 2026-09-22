@@ -20,6 +20,8 @@ class CreateTenantsTable extends Migration
 
             // your custom columns may go here
             $table->boolean('is_active')->default(true)->index();
+            $table->string('clinic_name')->nullable();
+            $table->string('owner_email')->nullable();
 
             $table->timestamps();
             $table->json('data')->nullable();

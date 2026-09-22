@@ -14,19 +14,25 @@ class PlatformMetricsService
      */
     public function getMetrics(): array
     {
-        $totalTenants = Tenant::count();
-        $activeTenants = Tenant::where('is_active', true)->count();
+        $tenants = Tenant::all();
+        $totalTenants = $tenants->count();
+        $activeTenants = $tenants->where('is_active', true)->count();
 
-        // Calculate total doctors across all tenants
-        $totalDoctors = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('roles.name', 'doctor')
-            ->where('model_has_roles.model_type', User::class)
-            ->distinct('model_has_roles.model_id')
-            ->count('model_has_roles.model_id');
+        $totalDoctors = 0;
+        $totalAppointments = 0;
+        $todayAppointments = 0;
 
-        $totalAppointments = Appointment::count();
-        $todayAppointments = Appointment::whereDate('appointment_time', today())->count();
+        foreach ($tenants as $tenant) {
+            try {
+                $tenant->run(function () use (&$totalDoctors, &$totalAppointments, &$todayAppointments) {
+                    $totalDoctors += User::role('doctor')->count();
+                    $totalAppointments += Appointment::count();
+                    $todayAppointments += Appointment::whereDate('appointment_time', today())->count();
+                });
+            } catch (\Throwable) {
+                // Ignore any tenant that is unreachable
+            }
+        }
 
         return [
             'total_tenants'      => $totalTenants,

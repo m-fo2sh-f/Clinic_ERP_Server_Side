@@ -10,18 +10,16 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->foreignUuid('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignId('cashier_id')->nullable()->constrained('users')->nullOnDelete();
             $table->decimal('amount', 10, 2);
-            $table->string('payment_method'); // cash, visa
+            $table->string('payment_method');
             $table->string('transaction_reference')->nullable();
             $table->timestamp('paid_at')->useCurrent();
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->index(['tenant_id', 'invoice_id'], 'idx_payments_tenant_invoice');
-            $table->index(['tenant_id', 'paid_at'], 'idx_payments_tenant_paid_at');
+            $table->index('invoice_id', 'idx_payments_invoice');
+            $table->index('paid_at', 'idx_payments_paid_at');
         });
     }
 

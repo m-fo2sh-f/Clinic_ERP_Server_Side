@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('appointments', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
             $table->foreignId('doctor_id')->nullable()->constrained('users')->nullOnDelete();
@@ -25,12 +24,11 @@ return new class extends Migration
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->index(['tenant_id', 'branch_id', 'appointment_time'], 'idx_appts_tenant_branch_time');
-            $table->index(['tenant_id', 'branch_id', 'doctor_id', 'appointment_time'], 'idx_appts_tenant_branch_doc_time');
-            $table->index(['tenant_id', 'branch_id', 'status', 'appointment_time'], 'idx_appts_tenant_branch_status_time');
-            $table->index(['tenant_id', 'doctor_id', 'appointment_time'], 'idx_appts_tenant_doctor_time');
-            $table->index(['tenant_id', 'patient_id', 'status'], 'idx_appts_tenant_patient_status');
+            $table->index(['branch_id', 'appointment_time'], 'idx_appts_branch_time');
+            $table->index(['branch_id', 'doctor_id', 'appointment_time'], 'idx_appts_branch_doc_time');
+            $table->index(['branch_id', 'status', 'appointment_time'], 'idx_appts_branch_status_time');
+            $table->index(['doctor_id', 'appointment_time'], 'idx_appts_doctor_time');
+            $table->index(['patient_id', 'status'], 'idx_appts_patient_status');
         });
     }
 

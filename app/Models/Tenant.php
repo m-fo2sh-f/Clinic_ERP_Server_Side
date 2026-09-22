@@ -3,20 +3,23 @@
 namespace App\Models;
 
 use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
+use Stancl\Tenancy\Contracts\TenantWithDatabase;
+use Stancl\Tenancy\Database\Concerns\HasDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDomains;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Tenant extends BaseTenant
+class Tenant extends BaseTenant implements TenantWithDatabase
 {
-    use HasDomains, HasUuids, HasFactory;
+    use HasDomains, HasDatabase, HasFactory;
 
     public static function getCustomColumns(): array
     {
         return [
             'id',
             'is_active',
+            'clinic_name',
+            'owner_email',
         ];
     }
 
@@ -25,25 +28,5 @@ class Tenant extends BaseTenant
         return [
             'is_active' => 'boolean',
         ];
-    }
-
-    public function branches(): HasMany
-    {
-        return $this->hasMany(Branch::class, 'tenant_id', 'id');
-    }
-
-    public function users(): HasMany
-    {
-        return $this->hasMany(User::class, 'tenant_id', 'id');
-    }
-
-    public function appointments(): HasMany
-    {
-        return $this->hasMany(Appointment::class, 'tenant_id', 'id');
-    }
-
-    public function patients(): HasMany
-    {
-        return $this->hasMany(Patient::class, 'tenant_id', 'id');
     }
 }

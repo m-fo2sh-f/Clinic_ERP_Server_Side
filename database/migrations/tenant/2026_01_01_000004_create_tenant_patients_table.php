@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('patients', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->unsignedBigInteger('mrn_sequence')->nullable();
             $table->string('medical_number')->nullable();
             $table->string('name');
@@ -25,11 +24,10 @@ return new class extends Migration
             $table->text('medical_history')->nullable();
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->index(['tenant_id', 'mrn_sequence'], 'idx_patients_tenant_mrn_seq');
-            $table->index(['tenant_id', 'phone', 'name'], 'idx_patients_tenant_phone_name');
-            $table->index(['tenant_id', 'created_at'], 'idx_patients_tenant_created');
-            $table->unique(['tenant_id', 'medical_number'], 'uniq_patients_tenant_medical_number');
+            $table->index('mrn_sequence', 'idx_patients_mrn_seq');
+            $table->index(['phone', 'name'], 'idx_patients_phone_name');
+            $table->index('created_at', 'idx_patients_created');
+            $table->unique('medical_number', 'uniq_patients_medical_number');
             $table->fullText(['name', 'phone'], 'ft_patients_name_phone');
         });
     }

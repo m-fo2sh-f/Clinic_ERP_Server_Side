@@ -14,6 +14,15 @@ class PlatformTenantUserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $createdAt = $this->formatted_created_at ?? null;
+        if (!$createdAt) {
+            try {
+                $createdAt = $this->created_at?->toIso8601String();
+            } catch (\Throwable) {
+                $createdAt = is_string($this->getRawOriginal('created_at')) ? $this->getRawOriginal('created_at') : null;
+            }
+        }
+
         return [
             'id'         => $this->id,
             'name'       => $this->name,
@@ -21,7 +30,7 @@ class PlatformTenantUserResource extends JsonResource
             'roles'      => $this->tenant_roles ?? [],
             'branches'   => $this->tenant_branches ?? [],
             'branch_ids' => $this->tenant_branch_ids ?? [],
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => $createdAt,
         ];
     }
 }

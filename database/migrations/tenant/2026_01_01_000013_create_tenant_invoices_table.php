@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('invoices', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id');
             $table->string('invoice_number');
             $table->foreignUuid('appointment_id')->nullable()->constrained('appointments')->cascadeOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
@@ -23,11 +22,10 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->unique(['tenant_id', 'invoice_number'], 'uniq_tenant_invoice_num');
-            $table->index(['tenant_id', 'branch_id', 'payment_status'], 'idx_invoices_branch_status');
-            $table->index(['tenant_id', 'patient_id'], 'idx_invoices_patient');
-            $table->index(['tenant_id', 'appointment_id'], 'idx_invoices_appointment');
+            $table->unique('invoice_number', 'uniq_invoice_num');
+            $table->index(['branch_id', 'payment_status'], 'idx_invoices_branch_status');
+            $table->index('patient_id', 'idx_invoices_patient');
+            $table->index('appointment_id', 'idx_invoices_appointment');
         });
     }
 

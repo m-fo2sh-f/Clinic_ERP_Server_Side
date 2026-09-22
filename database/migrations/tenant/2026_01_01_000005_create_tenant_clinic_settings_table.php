@@ -10,15 +10,12 @@ return new class extends Migration
     {
         Schema::create('clinic_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('tenant_id');
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
-            // الاستراتيجية: slots_only, fifo_only, hybrid
             $table->string('queue_strategy')->default('hybrid'); 
-            $table->integer('avg_appointment_duration')->default(15); // مدة الكشف بالدقائق
+            $table->integer('avg_appointment_duration')->default(15);
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->unique(['tenant_id', 'branch_id']);
+            $table->unique('branch_id');
         });
     }
 

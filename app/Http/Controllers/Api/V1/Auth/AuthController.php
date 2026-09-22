@@ -52,8 +52,8 @@ class AuthController extends Controller
         }
 
         if ($currentTenantId) {
-            $isDirectMember = $user->tenant_id === $currentTenantId;
-            $hasBranchInTenant = method_exists($user, 'branches') && $user->branches()->where('branches.tenant_id', $currentTenantId)->exists();
+            $hasBranchInTenant = method_exists($user, 'branches') && $user->branches()->exists();
+            $isDirectMember    = !isset($user->tenant_id) || $user->tenant_id === $currentTenantId;
 
             if (!$isDirectMember && !$hasBranchInTenant) {
                 Auth::logout();
@@ -83,19 +83,24 @@ class AuthController extends Controller
         $roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [];
         $permissions = method_exists($user, 'getAllPermissions') ? $user->getAllPermissions()->pluck('name') : [];
 
+        $token = method_exists($user, 'createToken')
+            ? $user->createToken('tenant_token')->plainTextToken
+            : null;
+
         return response()->json([
             'message' => 'تم تسجيل الدخول بنجاح',
-            'tenant' => tenant() ? [
-                'id' => tenant('id'),
+            'token'   => $token,
+            'tenant'  => tenant() ? [
+                'id'          => tenant('id'),
                 'clinic_name' => tenant('clinic_name') ?? tenant('id'),
             ] : null,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
+            'user'    => [
+                'id'             => $user->id,
+                'name'           => $user->name,
+                'email'          => $user->email,
                 'is_super_admin' => false,
-                'roles' => $roles,
-                'permissions' => $permissions,
+                'roles'          => $roles,
+                'permissions'    => $permissions,
             ],
             'branches' => $branches
         ]);

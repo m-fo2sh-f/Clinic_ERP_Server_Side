@@ -18,29 +18,18 @@ class PlatformImpersonationService
     {
         $tenant = Tenant::with('domains')->findOrFail($tenantId);
 
-        $teamKey = config('permission.column_names.team_foreign_key', 'tenant_id');
+        [$owner, $token] = $tenant->run(function () {
+            $owner = User::role('clinic_owner')->first() 
+                ?? User::where('email', 'LIKE', '%@%')->first();
 
-        // 1. Locate the clinic_owner for this tenant
-        $ownerId = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('roles.name', 'clinic_owner')
-            ->where('model_has_roles.model_type', User::class)
-            ->where("model_has_roles.{$teamKey}", $tenantId)
-            ->value('model_has_roles.model_id');
+            if (!$owner) {
+                abort(404, 'لم يتم العثور على مالك أو مستخدم صالح لهذه العيادة للتقمص.');
+            }
 
-        if (!$ownerId) {
-            // Fallback: check users directly assigned to this tenant
-            $owner = User::where('tenant_id', $tenantId)->first();
-        } else {
-            $owner = User::find($ownerId);
-        }
+            $token = $owner->createToken('impersonation', ['*'], now()->addMinutes(15))->plainTextToken;
 
-        if (!$owner) {
-            abort(404, 'لم يتم العثور على مالك أو مستخدم صالح لهذه العيادة للتقمص.');
-        }
-
-        // 2. Issue a strictly 15-minute Sanctum token
-        $token = $owner->createToken('impersonation', ['*'], now()->addMinutes(15))->plainTextToken;
+            return [$owner, $token];
+        });
 
         // 3. Create immutable audit record
         PlatformAuditLog::create([

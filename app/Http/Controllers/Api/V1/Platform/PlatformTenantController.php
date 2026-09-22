@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Platform\StoreTenantRequest;
 use App\Http\Requests\Api\V1\Platform\ToggleTenantStatusRequest;
 use App\Http\Resources\Api\V1\Platform\PlatformTenantDetailResource;
 use App\Http\Resources\Api\V1\Platform\PlatformTenantListResource;
@@ -16,6 +17,24 @@ class PlatformTenantController extends Controller
     public function __construct(
         protected PlatformTenantService $tenantService
     ) {}
+
+    /**
+     * POST /api/v1/platform/tenants
+     */
+    public function store(StoreTenantRequest $request): JsonResponse
+    {
+        $tenant = $this->tenantService->createTenant(
+            $request->validated(),
+            $request->user(),
+            $request
+        );
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم إنشاء وتجهيز العيادة وقاعدة بياناتها بنجاح',
+            'data'    => new PlatformTenantDetailResource($tenant),
+        ], 201);
+    }
 
     /**
      * GET /api/v1/platform/tenants
@@ -87,6 +106,38 @@ class PlatformTenantController extends Controller
             'status'  => 'success',
             'message' => $isActive ? 'تم تفعيل العيادة بنجاح' : 'تم إيقاف العيادة بنجاح',
             'data'    => new PlatformTenantDetailResource($tenant),
+        ]);
+    }
+
+    /**
+     * PUT/PATCH /api/v1/platform/tenants/{id}
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'clinic_name' => 'nullable|string|max:255',
+            'is_active'   => 'nullable|boolean',
+        ]);
+
+        $tenant = $this->tenantService->updateTenant($id, $validated, $request->user(), $request);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم تحديث بيانات العيادة بنجاح',
+            'data'    => new PlatformTenantDetailResource($tenant),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/platform/tenants/{id}
+     */
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        $this->tenantService->deleteTenant($id, $request->user(), $request);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم حذف العيادة وقاعدة بياناتها بنجاح',
         ]);
     }
 }
