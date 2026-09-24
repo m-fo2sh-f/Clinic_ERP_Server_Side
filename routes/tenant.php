@@ -30,6 +30,7 @@ Route::middleware([
     Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {
 
         // 📡 روت مصادقة القنوات الخاصة بالـ WebSockets تحت الـ Tenant
+        Broadcast::routes(['prefix' => 'api/v1', 'middleware' => ['auth:sanctum']]);
         Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
         // تسجيل الخروج وجلب البيانات الشخصية
