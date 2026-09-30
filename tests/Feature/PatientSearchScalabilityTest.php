@@ -5,53 +5,57 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\Branch;
 use App\Models\Patient;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\Branch;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class PatientSearchScalabilityTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected Tenant $tenantA;
     protected Tenant $tenantB;
     protected User $doctorA;
-    protected string $tokenA;
-
     protected Patient $patientAhmed;
     protected Patient $patientSara;
     protected Patient $patientJohn;
     protected Patient $patientTenantB;
+    protected string $tokenA;
+    protected string $domainA;
+    protected string $domainB;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // 1. Create Tenant A and Tenant B
-        $this->tenantA = Tenant::create(['id' => 'clinic-a']);
-        $this->tenantA->domains()->create(['domain' => 'clinic-a.test']);
+        // 1. Create Tenant A and Tenant B with dynamic unique IDs
+        $idA = 'clinic-a-' . Str::random(6);
+        $idB = 'clinic-b-' . Str::random(6);
+        $this->domainA = $idA . '.test';
+        $this->domainB = $idB . '.test';
 
-        $this->tenantB = Tenant::create(['id' => 'clinic-b']);
-        $this->tenantB->domains()->create(['domain' => 'clinic-b.test']);
+        $this->tenantA = Tenant::create(['id' => $idA]);
+        $this->tenantA->domains()->create(['domain' => $this->domainA]);
+
+        $this->tenantB = Tenant::create(['id' => $idB]);
+        $this->tenantB->domains()->create(['domain' => $this->domainB]);
 
         // 2. Setup Doctor in Tenant A
         tenancy()->initialize($this->tenantA);
-        setPermissionsTeamId($this->tenantA->id);
+        if (function_exists('setPermissionsTeamId')) {
+            setPermissionsTeamId($this->tenantA->id);
+        }
 
         Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
 
         $this->doctorA = User::factory()->create([
-            'tenant_id' => 'clinic-a',
-            'email'     => 'doctor@clinic-a.test',
+            'email' => 'doctor@clinic-a.test',
         ]);
         $this->doctorA->assignRole('doctor');
-        $branchA = Branch::factory()->create(['tenant_id' => 'clinic-a']);
+        $branchA = Branch::factory()->create();
         $this->doctorA->branches()->attach($branchA->id);
 
         // 3. Seed Patients for Tenant A
         $this->patientAhmed = Patient::create([
-            'tenant_id'      => 'clinic-a',
             'name'           => 'أحمد علي حسن',
             'phone'          => '01012345678',
             'medical_number' => 'MRN-10001',
@@ -60,7 +64,6 @@ class PatientSearchScalabilityTest extends TestCase
         ]);
 
         $this->patientSara = Patient::create([
-            'tenant_id'      => 'clinic-a',
             'name'           => 'سارة إبراهيم محمد',
             'phone'          => '01198765432',
             'medical_number' => 'PT-2026-002',
@@ -69,7 +72,6 @@ class PatientSearchScalabilityTest extends TestCase
         ]);
 
         $this->patientJohn = Patient::create([
-            'tenant_id'      => 'clinic-a',
             'name'           => 'John Doe Smith',
             'phone'          => '01234567890',
             'medical_number' => 'MRN-10003',
@@ -83,7 +85,6 @@ class PatientSearchScalabilityTest extends TestCase
         // 4. Seed Patient for Tenant B (to assert tenant isolation)
         tenancy()->initialize($this->tenantB);
         $this->patientTenantB = Patient::create([
-            'tenant_id'      => 'clinic-b',
             'name'           => 'أحمد علي دخيل',
             'phone'          => '01019999999',
             'medical_number' => 'MRN-99999',
@@ -99,10 +100,9 @@ class PatientSearchScalabilityTest extends TestCase
     protected function tearDown(): void
     {
         if (isset($this->tenantA)) {
-            Patient::whereIn('tenant_id', ['clinic-a', 'clinic-b'])->forceDelete();
-            User::whereIn('tenant_id', ['clinic-a', 'clinic-b'])->forceDelete();
-            Branch::whereIn('tenant_id', ['clinic-a', 'clinic-b'])->forceDelete();
             $this->tenantA->delete();
+        }
+        if (isset($this->tenantB)) {
             $this->tenantB->delete();
         }
         parent::tearDown();
@@ -112,7 +112,7 @@ class PatientSearchScalabilityTest extends TestCase
     public function test_phone_prefix_search_matches_correct_patient_via_btree_index(): void
     {
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients/search?q=0101');
+            ->getJson("http://{$this->domainA}/api/v1/patients/search?q=0101");
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
@@ -124,7 +124,7 @@ class PatientSearchScalabilityTest extends TestCase
     public function test_medical_number_prefix_search_matches_via_btree_index(): void
     {
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients/search?q=PT-2026');
+            ->getJson("http://{$this->domainA}/api/v1/patients/search?q=PT-2026");
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
@@ -137,7 +137,7 @@ class PatientSearchScalabilityTest extends TestCase
     {
         // 1. English name full-text search
         $responseEn = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients/search?q=John');
+            ->getJson("http://{$this->domainA}/api/v1/patients/search?q=John");
 
         $responseEn->assertStatus(200);
         $responseEn->assertJsonCount(1, 'data');
@@ -145,7 +145,7 @@ class PatientSearchScalabilityTest extends TestCase
 
         // 2. Arabic name search
         $responseAr = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients/search?q=سارة');
+            ->getJson("http://{$this->domainA}/api/v1/patients/search?q=سارة");
 
         $responseAr->assertStatus(200);
         $responseAr->assertJsonCount(1, 'data');
@@ -157,7 +157,7 @@ class PatientSearchScalabilityTest extends TestCase
     {
         // Short prefix (< 3 chars): 'Jo' -> John
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients/search?q=Jo');
+            ->getJson("http://{$this->domainA}/api/v1/patients/search?q=Jo");
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
@@ -169,7 +169,7 @@ class PatientSearchScalabilityTest extends TestCase
     {
         // Search '0101' which exists in both Tenant A (01012345678) and Tenant B (01019999999)
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients/search?q=0101');
+            ->getJson("http://{$this->domainA}/api/v1/patients/search?q=0101");
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -184,7 +184,7 @@ class PatientSearchScalabilityTest extends TestCase
     public function test_directory_listing_with_search_filter_returns_correct_results(): void
     {
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
-            ->getJson('http://clinic-a.test/api/v1/patients?search=0119');
+            ->getJson("http://{$this->domainA}/api/v1/patients?search=0119");
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');

@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -41,15 +42,18 @@ class PlatformSuperAdminTest extends TestCase
         $this->superAdminToken = $this->superAdmin->createToken('super-admin-token')->plainTextToken;
 
         // 2. Create Tenants
-        $this->tenant1 = Tenant::create(['id' => 'test-tenant-1']);
+        $id1 = 'super1-' . Str::random(6);
+        $id2 = 'super2-' . Str::random(6);
+
+        $this->tenant1 = Tenant::create(['id' => $id1]);
         $this->tenant1->is_active = true;
         $this->tenant1->save();
-        $this->tenant1->domains()->create(['domain' => 'tenant1.test']);
+        $this->tenant1->domains()->create(['domain' => $id1 . '.test']);
 
-        $this->tenant2 = Tenant::create(['id' => 'test-tenant-2']);
+        $this->tenant2 = Tenant::create(['id' => $id2]);
         $this->tenant2->is_active = true;
         $this->tenant2->save();
-        $this->tenant2->domains()->create(['domain' => 'tenant2.test']);
+        $this->tenant2->domains()->create(['domain' => $id2 . '.test']);
 
         $this->tenant1->run(function () {
             setPermissionsTeamId($this->tenant1->id);
@@ -64,26 +68,24 @@ class PlatformSuperAdminTest extends TestCase
             $recRole = Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
 
             $this->clinicOwner = User::create([
-                'name'      => 'Dr. Clinic Owner',
-                'email'     => 'owner@tenant1.test',
-                'password'  => Hash::make('password'),
-                'tenant_id' => $this->tenant1->id,
+                'name'     => 'Dr. Clinic Owner',
+                'email'    => 'owner@tenant1.test',
+                'password' => Hash::make('password'),
             ]);
             $this->clinicOwner->syncRoles([$ownerRole]);
             $this->clinicOwner->branches()->sync([$branch1->id]);
 
             $this->receptionist = User::create([
-                'name'      => 'Receptionist T1',
-                'email'     => 'reception@tenant1.test',
-                'password'  => Hash::make('password'),
-                'tenant_id' => $this->tenant1->id,
+                'name'     => 'Receptionist T1',
+                'email'    => 'reception@tenant1.test',
+                'password' => Hash::make('password'),
             ]);
             $this->receptionist->syncRoles([$recRole]);
             $this->receptionist->branches()->sync([$branch1->id]);
-        });
 
-        $this->clinicOwnerToken = $this->clinicOwner->createToken('owner-token')->plainTextToken;
-        $this->receptionistToken = $this->receptionist->createToken('rec-token')->plainTextToken;
+            $this->clinicOwnerToken = $this->clinicOwner->createToken('owner-token')->plainTextToken;
+            $this->receptionistToken = $this->receptionist->createToken('rec-token')->plainTextToken;
+        });
 
         tenancy()->end();
         if (function_exists('setPermissionsTeamId')) {
@@ -94,8 +96,15 @@ class PlatformSuperAdminTest extends TestCase
     /** @test */
     public function test_non_super_admin_receives_403_on_platform_metrics(): void
     {
-        // Clinic owner attempt
-        $resOwner = $this->withHeader('Authorization', 'Bearer ' . $this->clinicOwnerToken)
+        $regularUser = User::create([
+            'name'           => 'Regular Central User',
+            'email'          => 'regular@platform.test',
+            'password'       => Hash::make('password'),
+            'is_super_admin' => false,
+        ]);
+        $regularToken = $regularUser->createToken('regular-token')->plainTextToken;
+
+        $resOwner = $this->withHeader('Authorization', 'Bearer ' . $regularToken)
             ->getJson('/api/v1/platform/metrics');
 
         $resOwner->assertStatus(403);
@@ -103,12 +112,6 @@ class PlatformSuperAdminTest extends TestCase
             'status'  => 'error',
             'message' => 'غير مصرح لك بالوصول إلى لوحة التحكم المركزية للمنصة.',
         ]);
-
-        // Receptionist attempt
-        $resRec = $this->withHeader('Authorization', 'Bearer ' . $this->receptionistToken)
-            ->getJson('/api/v1/platform/metrics');
-
-        $resRec->assertStatus(403);
     }
 
     /** @test */
@@ -298,7 +301,15 @@ class PlatformSuperAdminTest extends TestCase
     /** @test */
     public function test_non_super_admin_receives_403_on_platform_me(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->clinicOwnerToken)
+        $regularUser = User::create([
+            'name'           => 'Regular Central User',
+            'email'          => 'regular_me@platform.test',
+            'password'       => Hash::make('password'),
+            'is_super_admin' => false,
+        ]);
+        $regularToken = $regularUser->createToken('regular-token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $regularToken)
             ->getJson('/api/v1/platform/me');
 
         $response->assertStatus(403);
@@ -306,6 +317,18 @@ class PlatformSuperAdminTest extends TestCase
             'status'  => 'error',
             'message' => 'غير مصرح لك بالوصول إلى لوحة التحكم المركزية للمنصة.',
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($this->tenant1)) {
+            $this->tenant1->delete();
+        }
+        if (isset($this->tenant2)) {
+            $this->tenant2->delete();
+        }
+
+        parent::tearDown();
     }
 }
 

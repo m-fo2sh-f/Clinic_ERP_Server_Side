@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('prescriptions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('appointment_id')->constrained('appointments')->cascadeOnDelete();
+            $table->foreignUuid('encounter_id')->nullable()->constrained('encounters')->cascadeOnDelete();
+            $table->foreignUuid('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
             $table->foreignId('doctor_id')->constrained('users')->cascadeOnDelete();
             $table->string('prescription_code');
@@ -22,6 +23,7 @@ return new class extends Migration
             $table->unique('prescription_code', 'uniq_rx_code');
             $table->index(['patient_id', 'prescription_date'], 'idx_rx_patient_date');
             $table->index('doctor_id', 'idx_rx_doctor');
+            $table->index('encounter_id', 'idx_rx_encounter');
         });
     }
 

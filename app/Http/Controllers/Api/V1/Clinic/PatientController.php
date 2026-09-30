@@ -123,7 +123,8 @@ class PatientController extends Controller
      */
     public function search(Request $request): JsonResponse
     {
-        $query = trim($request->query('q', ''));
+        $raw = $request->query('query') ?? $request->query('q', '');
+        $query = trim((string) $raw);
 
         if (mb_strlen($query) < 1) {
             return response()->json(['status' => 'success', 'data' => []]);
@@ -135,13 +136,43 @@ class PatientController extends Controller
                   ->orWhere('phone', 'LIKE', "%{$query}%")
                   ->orWhere('medical_number', 'LIKE', "%{$query}%");
             })
-            ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender'])
+            ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender', 'blood_group', 'allergies', 'chronic_diseases'])
             ->limit(15)
             ->get();
 
         return response()->json([
             'status' => 'success',
             'data'   => $patients
+        ]);
+    }
+
+    /**
+     * GET /patients/{id}/medical-profile — Medical background and past encounters.
+     */
+    public function medicalProfile(string $id): JsonResponse
+    {
+        $patient = Patient::with([
+            'encounters' => fn ($q) => $q->orderByDesc('created_at')->limit(10)->with(['doctor', 'prescription.items']),
+            'invoices'   => fn ($q) => $q->orderByDesc('created_at')->limit(5)->with('payments'),
+        ])->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'id'               => $patient->id,
+                'name'             => $patient->name,
+                'phone'            => $patient->phone,
+                'medical_number'   => $patient->medical_number,
+                'age'              => $patient->age,
+                'gender'           => $patient->gender,
+                'blood_group'      => $patient->blood_group,
+                'chronic_diseases' => $patient->chronic_diseases,
+                'allergies'        => $patient->allergies,
+                'surgeries'        => $patient->surgeries,
+                'medical_history'  => $patient->medical_history,
+                'encounters'       => $patient->encounters,
+                'invoices'         => $patient->invoices,
+            ],
         ]);
     }
 

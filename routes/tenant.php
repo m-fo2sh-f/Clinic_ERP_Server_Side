@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Clinic\AppointmentController;
 use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
 use App\Http\Controllers\Api\V1\Clinic\PatientController;
 use App\Http\Controllers\Api\V1\Clinic\ConsultationController;
+use App\Http\Controllers\Api\V1\Clinic\EncounterController;
 use App\Http\Controllers\Api\V1\Clinic\BranchController;
 use App\Http\Controllers\Api\V1\Clinic\BillingController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
@@ -49,6 +50,15 @@ Route::middleware([
                 Route::post('live-queues/next', [LiveQueueController::class, 'nextPatient']);
                 Route::get('patients/{id}/history', [PatientController::class, 'getHistory']);
                 Route::post('consultations/complete', [ConsultationController::class, 'complete']);
+
+                // 🩺 جلسات الفحص الموحدة (Solo & Polyclinic Encounters)
+                Route::prefix('encounters')->group(function () {
+                    Route::post('quick-start', [EncounterController::class, 'quickStart']);
+                    Route::match(['put', 'patch'], '{id}/draft', [EncounterController::class, 'saveDraft']);
+                    Route::post('{id}/complete', [EncounterController::class, 'complete']);
+                    Route::get('today-summary', [EncounterController::class, 'todaySummary']);
+                    Route::get('{id}', [EncounterController::class, 'show']);
+                });
             });
 
             // 📋 ج. روتات تشغيلية مشتركة (Receptionist, Doctor & Clinic Owner)
@@ -68,6 +78,7 @@ Route::middleware([
                 // المرضى وقائمة الأدلة
                 Route::get('patients/search', [PatientController::class, 'search'])->middleware('throttle:60,1');
                 Route::get('patients/{id}/summary', [PatientController::class, 'summary']);
+                Route::get('patients/{id}/medical-profile', [PatientController::class, 'medicalProfile']);
                 Route::apiResource('patients', PatientController::class);
 
                 // 💳 الفواتير والمدفوعات التشغيلية (عرض الخدمات وإصدار الفواتير وتحصيلها)

@@ -53,24 +53,21 @@ class BillingLifecycleTest extends TestCase
         Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
 
-        $this->branch = Branch::factory()->create(['tenant_id' => $this->tenant->id]);
+        $this->branch = Branch::factory()->create();
 
         $this->doctor = User::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'email'     => 'dr@lifecycle.test',
+            'email' => 'dr@lifecycle.test',
         ]);
         $this->doctor->assignRole('doctor');
         $this->doctor->branches()->attach($this->branch->id);
 
         $this->receptionist = User::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'email'     => 'rx@lifecycle.test',
+            'email' => 'rx@lifecycle.test',
         ]);
         $this->receptionist->assignRole('receptionist');
         $this->receptionist->branches()->attach($this->branch->id);
 
         $this->patient = Patient::create([
-            'tenant_id'      => $this->tenant->id,
             'name'           => 'مريض تجربة الدورة',
             'phone'          => '01011112222',
             'medical_number' => 'MRN-LC-001',
@@ -79,7 +76,6 @@ class BillingLifecycleTest extends TestCase
         ]);
 
         $this->consultationService = Service::create([
-            'tenant_id'     => $this->tenant->id,
             'name'          => 'كشف استشاري',
             'code'          => 'CONSULTATION',
             'default_price' => 150.00,
@@ -87,7 +83,6 @@ class BillingLifecycleTest extends TestCase
         ]);
 
         BranchService::create([
-            'tenant_id'    => $this->tenant->id,
             'branch_id'    => $this->branch->id,
             'service_id'   => $this->consultationService->id,
             'price'        => 150.00,
@@ -95,7 +90,6 @@ class BillingLifecycleTest extends TestCase
         ]);
 
         $this->ecgService = Service::create([
-            'tenant_id'     => $this->tenant->id,
             'name'          => 'رسم قلب (ECG)',
             'code'          => 'ECG',
             'default_price' => 100.00,
@@ -103,7 +97,6 @@ class BillingLifecycleTest extends TestCase
         ]);
 
         BranchService::create([
-            'tenant_id'    => $this->tenant->id,
             'branch_id'    => $this->branch->id,
             'service_id'   => $this->ecgService->id,
             'price'        => 100.00,

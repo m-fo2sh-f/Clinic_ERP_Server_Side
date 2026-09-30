@@ -3,14 +3,18 @@
 namespace App\Services\Clinic;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\EncounterStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\LiveQueueStatus;
 use App\Events\InvoicePaid;
 use App\Events\InvoiceReadyForPayment;
 use App\Models\Appointment;
 use App\Models\BranchService;
+use App\Models\Encounter;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\LiveQueue;
 use App\Models\Payment;
 use App\Models\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -33,7 +37,9 @@ class BillingService
             }
 
             // Find consultation service
-            $consultationService = Service::where('code', 'CONSULTATION')->first();
+            $consultationService = Service::where('code', 'CONSULTATION')->first()
+                ?? Service::where('code', 'GEN-01')->first()
+                ?? Service::first();
 
             $unitPrice = 150.00;
             if ($consultationService) {
@@ -68,6 +74,104 @@ class BillingService
             ]);
 
             return $invoice->load(['items', 'patient', 'appointment']);
+        });
+    }
+
+    /**
+     * Create an initial invoice for an encounter (Solo Walk-in or Polyclinic),
+     * snapshotting service price(s) and consultation fees at creation time.
+     */
+    public function createInvoiceForEncounter(Encounter $encounter, array $serviceItems = [], float $discount = 0.0): Invoice
+    {
+        return DB::transaction(function () use ($encounter, $serviceItems, $discount) {
+            $existing = Invoice::where('encounter_id', $encounter->id)->first();
+            if ($existing) {
+                return $existing->load(['items', 'patient', 'encounter']);
+            }
+
+            $invoiceNumber = $this->generateInvoiceNumber();
+
+            $invoice = Invoice::create([
+                'invoice_number' => $invoiceNumber,
+                'encounter_id'   => $encounter->id,
+                'appointment_id' => $encounter->appointment_id,
+                'patient_id'     => $encounter->patient_id,
+                'branch_id'      => $encounter->branch_id,
+                'subtotal'       => 0.00,
+                'discount'       => max(0.0, $discount),
+                'total'          => 0.00,
+                'payment_status' => PaymentStatus::UNPAID->value,
+            ]);
+
+            $totalSubtotal = 0.0;
+
+            if (!empty($serviceItems)) {
+                foreach ($serviceItems as $itemData) {
+                    $serviceId = is_array($itemData) ? ($itemData['service_id'] ?? $itemData['id'] ?? null) : $itemData;
+                    $quantity = is_array($itemData) ? max(1, (int)($itemData['quantity'] ?? 1)) : 1;
+                    if (!$serviceId) {
+                        continue;
+                    }
+
+                    $service = Service::find($serviceId);
+                    if (!$service) {
+                        continue;
+                    }
+
+                    $branchOverride = BranchService::where('branch_id', $encounter->branch_id)
+                        ->where('service_id', $service->id)
+                        ->where('is_available', true)
+                        ->value('price');
+
+                    $unitPrice = $branchOverride !== null ? (float) $branchOverride : (float) $service->default_price;
+                    $itemTotal = round($unitPrice * $quantity, 2);
+
+                    InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'service_id' => $service->id,
+                        'item_name'  => $service->name, // Snapshot
+                        'unit_price' => $unitPrice,    // Snapshot
+                        'quantity'   => $quantity,
+                        'total'      => $itemTotal,
+                    ]);
+
+                    $totalSubtotal += $itemTotal;
+                }
+            } else {
+                // Default consultation service snapshot
+                $consultationService = Service::whereIn('code', ['CONSULTATION', 'GEN-01'])->first()
+                    ?? Service::first();
+
+                $unitPrice = 150.00;
+                if ($consultationService) {
+                    $branchOverride = BranchService::where('branch_id', $encounter->branch_id)
+                        ->where('service_id', $consultationService->id)
+                        ->where('is_available', true)
+                        ->value('price');
+
+                    $unitPrice = $branchOverride !== null ? (float) $branchOverride : (float) $consultationService->default_price;
+                }
+
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'service_id' => $consultationService?->id,
+                    'item_name'  => $consultationService?->name ?? 'كشف استشاري',
+                    'unit_price' => $unitPrice,
+                    'quantity'   => 1,
+                    'total'      => $unitPrice,
+                ]);
+
+                $totalSubtotal = $unitPrice;
+            }
+
+            $totalFinal = max(0.0, round($totalSubtotal - max(0.0, $discount), 2));
+
+            $invoice->update([
+                'subtotal' => $totalSubtotal,
+                'total'    => $totalFinal,
+            ]);
+
+            return $invoice->load(['items', 'patient', 'encounter']);
         });
     }
 
@@ -212,12 +316,37 @@ class BillingService
                 'paid_at'        => now(),
             ]);
 
-            // Transition appointment status to completed
+            // Transition appointment and live queue status to completed
             if ($invoice->appointment_id) {
                 Appointment::where('id', $invoice->appointment_id)->update([
-                    'status'       => AppointmentStatus::COMPLETED->value,
-                    'completed_at' => now(),
+                    'status' => AppointmentStatus::COMPLETED->value,
                 ]);
+
+                LiveQueue::where('appointment_id', $invoice->appointment_id)->update([
+                    'status' => LiveQueueStatus::COMPLETED->value,
+                ]);
+            }
+
+            // Transition encounter status to completed if not already completed
+            if ($invoice->encounter_id) {
+                $enc = Encounter::where('id', $invoice->encounter_id)->first();
+                if ($enc) {
+                    if ($enc->status !== EncounterStatus::COMPLETED) {
+                        $enc->update([
+                            'status'       => EncounterStatus::COMPLETED->value,
+                            'completed_at' => now(),
+                        ]);
+                    }
+                    if ($enc->appointment_id) {
+                        Appointment::where('id', $enc->appointment_id)->update([
+                            'status' => AppointmentStatus::COMPLETED->value,
+                        ]);
+
+                        LiveQueue::where('appointment_id', $enc->appointment_id)->update([
+                            'status' => LiveQueueStatus::COMPLETED->value,
+                        ]);
+                    }
+                }
             }
 
             // Broadcast InvoicePaid event

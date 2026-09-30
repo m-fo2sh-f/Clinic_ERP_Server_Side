@@ -16,12 +16,6 @@ return new class extends Migration
             $table->dateTime('appointment_time');
             $table->string('type')->default('check_up');
             $table->string('status')->default('booking');
-            $table->text('chief_complaint')->nullable();
-            $table->text('diagnosis')->nullable();
-            $table->text('clinical_examination')->nullable();
-            $table->json('vitals')->nullable();
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
             $table->timestamps();
 
             $table->index(['branch_id', 'appointment_time'], 'idx_appts_branch_time');

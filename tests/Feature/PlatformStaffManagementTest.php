@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -41,16 +42,19 @@ class PlatformStaffManagementTest extends TestCase
 
         $this->superAdminToken = $this->superAdmin->createToken('super-admin-token')->plainTextToken;
 
-        // 2. Create Tenants
-        $this->tenant1 = Tenant::create(['id' => 'tenant-alpha']);
+        // 2. Create Tenants with dynamic IDs
+        $id1 = 'alpha-' . Str::random(6);
+        $id2 = 'beta-' . Str::random(6);
+
+        $this->tenant1 = Tenant::create(['id' => $id1]);
         $this->tenant1->is_active = true;
         $this->tenant1->save();
-        $this->tenant1->domains()->create(['domain' => 'alpha.test']);
+        $this->tenant1->domains()->create(['domain' => $id1 . '.test']);
 
-        $this->tenant2 = Tenant::create(['id' => 'tenant-beta']);
+        $this->tenant2 = Tenant::create(['id' => $id2]);
         $this->tenant2->is_active = true;
         $this->tenant2->save();
-        $this->tenant2->domains()->create(['domain' => 'beta.test']);
+        $this->tenant2->domains()->create(['domain' => $id2 . '.test']);
 
         // 3. Setup Tenant 1 entities
         $this->tenant1->run(function () {
@@ -68,22 +72,22 @@ class PlatformStaffManagementTest extends TestCase
             $recRole = Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
 
             $this->clinicOwner = User::create([
-                'name'      => 'Dr. Alpha Owner',
-                'email'     => 'owner@alpha.test',
-                'password'  => Hash::make('password123'),
-                'tenant_id' => $this->tenant1->id,
+                'name'     => 'Dr. Alpha Owner',
+                'email'    => 'owner@alpha.test',
+                'password' => Hash::make('password123'),
             ]);
             $this->clinicOwner->syncRoles([$ownerRole]);
             $this->clinicOwner->branches()->sync([$this->branch1->id]);
 
             $this->doctor = User::create([
-                'name'      => 'Dr. Alpha Doctor',
-                'email'     => 'doctor@alpha.test',
-                'password'  => Hash::make('password123'),
-                'tenant_id' => $this->tenant1->id,
+                'name'     => 'Dr. Alpha Doctor',
+                'email'    => 'doctor@alpha.test',
+                'password' => Hash::make('password123'),
             ]);
             $this->doctor->syncRoles([$doctorRole]);
             $this->doctor->branches()->sync([$this->branch1->id]);
+
+            $this->clinicOwnerToken = $this->clinicOwner->createToken('owner-token')->plainTextToken;
         });
 
         // 4. Setup Tenant 2 entities
@@ -98,12 +102,21 @@ class PlatformStaffManagementTest extends TestCase
             ]);
         });
 
-        $this->clinicOwnerToken = $this->clinicOwner->createToken('owner-token')->plainTextToken;
-
         tenancy()->end();
         if (function_exists('setPermissionsTeamId')) {
             setPermissionsTeamId(null);
         }
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($this->tenant1)) {
+            $this->tenant1->delete();
+        }
+        if (isset($this->tenant2)) {
+            $this->tenant2->delete();
+        }
+        parent::tearDown();
     }
 
     /** @test */

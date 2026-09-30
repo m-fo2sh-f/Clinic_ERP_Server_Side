@@ -16,6 +16,8 @@ class StoreTenantRequest extends FormRequest
         return [
             'clinic_name'    => ['required', 'string', 'max:255'],
             'subdomain'      => ['required', 'string', 'alpha_dash', 'max:50', 'unique:domains,domain', 'unique:tenants,id'],
+            'clinic_mode'    => ['nullable', 'string', 'in:solo,polyclinic'],
+            'branch_name'    => ['nullable', 'string', 'max:255'],
             'admin_name'     => ['required', 'string', 'max:255'],
             'admin_email'    => ['required', 'email', 'max:255'],
             'admin_password' => ['required', 'string', 'min:8'],

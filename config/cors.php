@@ -22,9 +22,10 @@ return [
     'allowed_origins' => [''],
 
     'allowed_origins_patterns' => [
-        '#^http://localhost(:[0-9]+)?$#',
-        '#^http://127\.0\.0\.1(:[0-9]+)?$#',
-        '#^http://(.*\.)?my-saas\.test(:[0-9]+)?$#',
+        '#^https?://(.*\.)?localhost(:[0-9]+)?$#',
+        '#^https?://localhost(:[0-9]+)?$#',
+        '#^https?://127\.0\.0\.1(:[0-9]+)?$#',
+        '#^https?://(.*\.)?my-saas\.test(:[0-9]+)?$#',
     ],
 
     'allowed_headers' => ['*'],

@@ -15,6 +15,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'invoice_number',
+        'encounter_id',
         'appointment_id',
         'patient_id',
         'branch_id',
@@ -35,6 +36,11 @@ class Invoice extends Model
             'payment_status' => PaymentStatus::class,
             'paid_at'        => 'datetime',
         ];
+    }
+
+    public function encounter(): BelongsTo
+    {
+        return $this->belongsTo(Encounter::class);
     }
 
     public function appointment(): BelongsTo

@@ -39,4 +39,14 @@ class Branch extends Model
     {
         return $this->hasMany(BranchService::class);
     }
+
+    public function clinicSetting()
+    {
+        return $this->hasOne(ClinicSetting::class);
+    }
+
+    public function encounters()
+    {
+        return $this->hasMany(Encounter::class);
+    }
 }

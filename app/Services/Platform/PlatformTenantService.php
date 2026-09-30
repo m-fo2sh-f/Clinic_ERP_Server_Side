@@ -55,8 +55,8 @@ class PlatformTenantService
     public function createTenant(array $data, User $superAdmin, Request $request): Tenant
     {
         $subdomain = \Illuminate\Support\Str::slug($data['subdomain']);
-        $centralDomain = config('tenancy.central_domains')[0] ?? 'localhost';
-        $domainName = "{$subdomain}.{$centralDomain}";
+        $clinicMode = $data['clinic_mode'] ?? 'solo';
+        $branchName = !empty($data['branch_name']) ? trim($data['branch_name']) : 'الفرع الرئيسي';
 
         // 1. Create Tenant (triggers Stancl pipeline: CreateDatabase, MigrateDatabase, SeedDatabase)
         $tenant = Tenant::create([
@@ -67,12 +67,18 @@ class PlatformTenantService
             'admin_name'     => $data['admin_name'],
             'admin_password' => $data['admin_password'],
             'phone'          => $data['phone'] ?? null,
+            'clinic_mode'    => $clinicMode,
+            'branch_name'    => $branchName,
         ]);
 
-        // 2. Create Domain record
-        $tenant->domains()->create([
-            'domain' => $domainName,
-        ]);
+        // 2. Create Domain records (Dual Domain locally for zero-config, single domain in production)
+        if (app()->environment('local', 'testing')) {
+            $tenant->domains()->create(['domain' => "{$subdomain}.localhost"]);
+            $tenant->domains()->create(['domain' => "{$subdomain}.my-saas.test"]);
+        } else {
+            $prodDomain = env('APP_DOMAIN', 'my-saas.com');
+            $tenant->domains()->create(['domain' => "{$subdomain}.{$prodDomain}"]);
+        }
 
         // 3. Log Immutable Audit Record
         PlatformAuditLog::create([

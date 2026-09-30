@@ -69,10 +69,17 @@ class AuthController extends Controller
             $request->session()->regenerate();
         }
 
-        // جلب فروع المستخدم في العيادة الحالية
+        // جلب فروع المستخدم في العيادة الحالية مع إعداداتها
         $branches = method_exists($user, 'branches') 
-            ? $user->branches()->get(['branches.id', 'branches.name']) 
-            : [];
+            ? $user->branches()->with('clinicSetting')->get(['branches.id', 'branches.name'])->map(function ($b) {
+                return [
+                    'id'            => $b->id,
+                    'name'          => $b->name,
+                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
+                ];
+            })
+            : collect([]);
 
         // 🎯 2. لو المستخدم ملوش فروع مسجلة في هذه العيادة (مثل ندى في tenant-2) -> رفض الدخول
         if ($branches->isEmpty() && !$user->hasRole('clinic_owner')) {
@@ -143,8 +150,15 @@ class AuthController extends Controller
         }
 
         $branches = ($user && method_exists($user, 'branches')) 
-            ? $user->branches()->get(['branches.id', 'branches.name']) 
-            : [];
+            ? $user->branches()->with('clinicSetting')->get(['branches.id', 'branches.name'])->map(function ($b) {
+                return [
+                    'id'            => $b->id,
+                    'name'          => $b->name,
+                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
+                ];
+            })
+            : collect([]);
 
         $tenant = tenant();
 

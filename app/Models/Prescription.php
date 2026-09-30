@@ -13,6 +13,7 @@ class Prescription extends Model
     use HasUuids, HasFactory;
 
     protected $fillable = [
+        'encounter_id',
         'appointment_id',
         'patient_id',
         'doctor_id',
@@ -28,6 +29,11 @@ class Prescription extends Model
             'prescription_date' => 'date',
             'follow_up_date'    => 'date',
         ];
+    }
+
+    public function encounter(): BelongsTo
+    {
+        return $this->belongsTo(Encounter::class);
     }
 
     public function appointment(): BelongsTo
