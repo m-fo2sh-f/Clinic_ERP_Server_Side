@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('invoices', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('invoice_number');
-            $table->foreignUuid('encounter_id')->nullable()->constrained('encounters')->nullOnDelete();
+            $table->foreignUuid('encounter_id')->nullable()->constrained('encounters')->cascadeOnDelete();
             $table->foreignUuid('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
@@ -25,6 +25,7 @@ return new class extends Migration
 
             $table->unique('invoice_number', 'uniq_invoice_num');
             $table->index(['branch_id', 'payment_status'], 'idx_invoices_branch_status');
+            $table->index(['branch_id', 'payment_status', 'created_at'], 'idx_invoices_branch_status_created');
             $table->index('patient_id', 'idx_invoices_patient');
             $table->index('appointment_id', 'idx_invoices_appointment');
             $table->index('encounter_id', 'idx_invoices_encounter');

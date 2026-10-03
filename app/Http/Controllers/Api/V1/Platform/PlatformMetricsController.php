@@ -18,11 +18,11 @@ class PlatformMetricsController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $metrics = $this->metricsService->getMetrics();
+        $metrics = $this->metricsService->getMetrics($request->boolean('refresh'));
 
         return response()->json([
             'status' => 'success',
-            'data'   => $metrics,
+            'data' => $metrics,
         ]);
     }
 }

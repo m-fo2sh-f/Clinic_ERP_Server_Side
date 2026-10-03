@@ -164,7 +164,14 @@ class LiveQueueController extends Controller
 
         $roomName = $validated['room_name'] ?? 'Examination Room';
 
-        $nextPatient = $this->liveQueueService->callNextPatient($validated['branch_id'], $doctorId, $roomName);
+        try {
+            $nextPatient = $this->liveQueueService->callNextPatient($validated['branch_id'], $doctorId, $roomName);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 409);
+        }
 
         if (!$nextPatient) {
             return response()->json([
@@ -210,5 +217,22 @@ class LiveQueueController extends Controller
             'message' => 'تم تسجيل المريض المباشر ودخوله صالة الانتظار بنجاح',
             'data'    => new LiveQueueResource($queueRecord->load('patient'))
         ], 201);
+    }
+
+    /**
+     * Cancel waiting queue item (Reception Walk-Away).
+     */
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $queueItem = LiveQueue::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $queueItem->branch_id);
+
+        $cancelled = $this->liveQueueService->cancelQueueItem($id);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'تم إلغاء دور المريض في صالة الانتظار بنجاح',
+            'data'    => new LiveQueueResource($cancelled),
+        ], 200);
     }
 }

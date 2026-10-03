@@ -17,6 +17,7 @@ class LiveQueue extends Model
         'doctor_id',
         'patient_id',
         'appointment_id',
+        'encounter_id',
         'shift_date',
         'queue_no',
         'status',
@@ -49,5 +50,10 @@ class LiveQueue extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    public function encounter(): BelongsTo
+    {
+        return $this->belongsTo(Encounter::class);
     }
 }

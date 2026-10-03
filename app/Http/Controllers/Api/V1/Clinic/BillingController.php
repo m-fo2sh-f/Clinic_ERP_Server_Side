@@ -148,11 +148,16 @@ class BillingController extends Controller
      */
     public function pay(ProcessPaymentRequest $request, string $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user->hasRole('doctor') && !$user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
+            abort(403, 'غير مصرح للطبيب بتحصيل مدفوعات الفواتير.');
+        }
+
         $invoice = Invoice::findOrFail($id);
-        $this->authorizeBranchAccess($request->user(), $invoice->branch_id);
+        $this->authorizeBranchAccess($user, $invoice->branch_id);
 
         $paymentsData = $request->validated('payments');
-        $updatedInvoice = $this->billingService->processPayment($id, $paymentsData, $request->user()->id);
+        $updatedInvoice = $this->billingService->processPayment($id, $paymentsData, $user->id);
 
         return response()->json([
             'status'  => 'success',
@@ -175,6 +180,52 @@ class BillingController extends Controller
         return response()->json([
             'status' => 'success',
             'data'   => $invoice->load(['items', 'patient', 'appointment.doctor', 'branch']),
+        ]);
+    }
+
+    /**
+     * Get or create invoice for a specific live queue item (walk-in or appointment-backed).
+     * GET /api/v1/invoices/live-queue/{queueId}
+     */
+    public function forQueueItem(Request $request, string $queueId): JsonResponse
+    {
+        $queueItem = \App\Models\LiveQueue::find($queueId);
+        if (! $queueItem) {
+            $encounter = \App\Models\Encounter::find($queueId);
+            if ($encounter) {
+                return $this->forEncounter($request, $queueId);
+            }
+            $appointment = \App\Models\Appointment::find($queueId);
+            if ($appointment) {
+                return $this->forAppointment($request, $queueId);
+            }
+            abort(404, 'لم يتم العثور على سجل الانتظار أو الكشف المطلوب.');
+        }
+
+        $this->authorizeBranchAccess($request->user(), $queueItem->branch_id);
+
+        $invoice = $this->billingService->getOrCreateInvoiceForQueueItem($queueItem);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $invoice->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor', 'branch']),
+        ]);
+    }
+
+    /**
+     * Get or create invoice for a specific encounter.
+     * GET /api/v1/invoices/encounter/{encounterId}
+     */
+    public function forEncounter(Request $request, string $encounterId): JsonResponse
+    {
+        $encounter = \App\Models\Encounter::findOrFail($encounterId);
+        $this->authorizeBranchAccess($request->user(), $encounter->branch_id);
+
+        $invoice = $this->billingService->createInvoiceForEncounter($encounter);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $invoice->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor', 'branch']),
         ]);
     }
 

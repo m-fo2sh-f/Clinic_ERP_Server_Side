@@ -1,12 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\Platform\PlatformImpersonationController;
 use App\Http\Controllers\Api\V1\Platform\PlatformMetricsController;
+use App\Http\Controllers\Api\V1\Platform\PlatformTenantBranchController;
 use App\Http\Controllers\Api\V1\Platform\PlatformTenantController;
 use App\Http\Controllers\Api\V1\Platform\PlatformTenantStaffController;
-use App\Http\Controllers\Api\V1\Platform\PlatformTenantBranchController;
-use App\Http\Controllers\Api\V1\Platform\PlatformImpersonationController;
-use App\Http\Controllers\Api\V1\Auth\AuthController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,11 +15,11 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 */
 
 // 🔓 Central Public Authentication & Sanctum CSRF Cookie
-Route::get('/sanctum/csrf-cookie', fn() => response()->noContent());
+Route::get('/sanctum/csrf-cookie', fn () => response()->noContent());
 
 Route::prefix('api/v1')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-    Route::get('/sanctum/csrf-cookie', fn() => response()->noContent());
+    Route::get('/sanctum/csrf-cookie', fn () => response()->noContent());
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
@@ -49,5 +49,6 @@ Route::prefix('api/v1/platform')
         Route::post('/tenants/{tenantId}/users/{userId}/reset-password', [PlatformTenantStaffController::class, 'resetPassword']);
 
         // Platform Tenant Branch Management
+        Route::post('/tenants/{tenantId}/branches', [PlatformTenantBranchController::class, 'store']);
         Route::put('/tenants/{tenantId}/branches/{branchId}', [PlatformTenantBranchController::class, 'update']);
     });

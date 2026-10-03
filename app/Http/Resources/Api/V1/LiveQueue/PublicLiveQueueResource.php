@@ -10,11 +10,11 @@ class PublicLiveQueueResource extends JsonResource
     public function toArray(Request $request): array
     {
         // إخفاء باقي الاسم لحماية الخصوصية
-        $fullName = $this->patient?->name ?? 'مريض';
-        $parts = explode(' ', trim($fullName));
+        $fullName = trim((string) ($this->patient?->name ?? 'مريض'));
+        $parts = preg_split('/\s+/', $fullName, -1, PREG_SPLIT_NO_EMPTY);
         $anonymizedName = count($parts) > 1 
             ? $parts[0] . ' ' . mb_substr($parts[1], 0, 1) . '.'
-            : $parts[0];
+            : ($parts[0] ?? 'مريض');
 
         return [
             'id'           => $this->id,

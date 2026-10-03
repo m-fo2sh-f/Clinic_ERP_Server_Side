@@ -76,7 +76,7 @@ class PlatformTenantService
             $tenant->domains()->create(['domain' => "{$subdomain}.localhost"]);
             $tenant->domains()->create(['domain' => "{$subdomain}.my-saas.test"]);
         } else {
-            $prodDomain = env('APP_DOMAIN', 'my-saas.com');
+            $prodDomain = config('app.domain', 'my-saas.com');
             $tenant->domains()->create(['domain' => "{$subdomain}.{$prodDomain}"]);
         }
 

@@ -4,9 +4,9 @@ namespace App\Services\Clinic;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\EncounterStatus;
+use App\Enums\LiveQueueStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
-use App\Enums\LiveQueueStatus;
 use App\Events\InvoicePaid;
 use App\Events\InvoiceReadyForPayment;
 use App\Models\Appointment;
@@ -17,6 +17,7 @@ use App\Models\InvoiceItem;
 use App\Models\LiveQueue;
 use App\Models\Payment;
 use App\Models\Service;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -56,21 +57,21 @@ class BillingService
             $invoice = Invoice::create([
                 'invoice_number' => $invoiceNumber,
                 'appointment_id' => $appointment->id,
-                'patient_id'     => $appointment->patient_id,
-                'branch_id'      => $appointment->branch_id,
-                'subtotal'       => $unitPrice,
-                'discount'       => 0.00,
-                'total'          => $unitPrice,
+                'patient_id' => $appointment->patient_id,
+                'branch_id' => $appointment->branch_id,
+                'subtotal' => $unitPrice,
+                'discount' => 0.00,
+                'total' => $unitPrice,
                 'payment_status' => PaymentStatus::UNPAID->value,
             ]);
 
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
                 'service_id' => $consultationService?->id,
-                'item_name'  => $consultationService?->name ?? 'كشف استشاري',
+                'item_name' => $consultationService?->name ?? 'كشف استشاري',
                 'unit_price' => $unitPrice,
-                'quantity'   => 1,
-                'total'      => $unitPrice,
+                'quantity' => 1,
+                'total' => $unitPrice,
             ]);
 
             return $invoice->load(['items', 'patient', 'appointment']);
@@ -93,28 +94,28 @@ class BillingService
 
             $invoice = Invoice::create([
                 'invoice_number' => $invoiceNumber,
-                'encounter_id'   => $encounter->id,
+                'encounter_id' => $encounter->id,
                 'appointment_id' => $encounter->appointment_id,
-                'patient_id'     => $encounter->patient_id,
-                'branch_id'      => $encounter->branch_id,
-                'subtotal'       => 0.00,
-                'discount'       => max(0.0, $discount),
-                'total'          => 0.00,
+                'patient_id' => $encounter->patient_id,
+                'branch_id' => $encounter->branch_id,
+                'subtotal' => 0.00,
+                'discount' => max(0.0, $discount),
+                'total' => 0.00,
                 'payment_status' => PaymentStatus::UNPAID->value,
             ]);
 
             $totalSubtotal = 0.0;
 
-            if (!empty($serviceItems)) {
+            if (! empty($serviceItems)) {
                 foreach ($serviceItems as $itemData) {
                     $serviceId = is_array($itemData) ? ($itemData['service_id'] ?? $itemData['id'] ?? null) : $itemData;
-                    $quantity = is_array($itemData) ? max(1, (int)($itemData['quantity'] ?? 1)) : 1;
-                    if (!$serviceId) {
+                    $quantity = is_array($itemData) ? max(1, (int) ($itemData['quantity'] ?? 1)) : 1;
+                    if (! $serviceId) {
                         continue;
                     }
 
                     $service = Service::find($serviceId);
-                    if (!$service) {
+                    if (! $service) {
                         continue;
                     }
 
@@ -129,10 +130,10 @@ class BillingService
                     InvoiceItem::create([
                         'invoice_id' => $invoice->id,
                         'service_id' => $service->id,
-                        'item_name'  => $service->name, // Snapshot
+                        'item_name' => $service->name, // Snapshot
                         'unit_price' => $unitPrice,    // Snapshot
-                        'quantity'   => $quantity,
-                        'total'      => $itemTotal,
+                        'quantity' => $quantity,
+                        'total' => $itemTotal,
                     ]);
 
                     $totalSubtotal += $itemTotal;
@@ -155,20 +156,23 @@ class BillingService
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'service_id' => $consultationService?->id,
-                    'item_name'  => $consultationService?->name ?? 'كشف استشاري',
+                    'item_name' => $consultationService?->name ?? 'كشف استشاري',
                     'unit_price' => $unitPrice,
-                    'quantity'   => 1,
-                    'total'      => $unitPrice,
+                    'quantity' => 1,
+                    'total' => $unitPrice,
                 ]);
 
                 $totalSubtotal = $unitPrice;
             }
 
             $totalFinal = max(0.0, round($totalSubtotal - max(0.0, $discount), 2));
+            $isZeroCost = ($totalFinal <= 0.0);
 
             $invoice->update([
                 'subtotal' => $totalSubtotal,
-                'total'    => $totalFinal,
+                'total' => $totalFinal,
+                'payment_status' => $isZeroCost ? PaymentStatus::PAID->value : PaymentStatus::UNPAID->value,
+                'paid_at' => $isZeroCost ? now() : null,
             ]);
 
             return $invoice->load(['items', 'patient', 'encounter']);
@@ -206,10 +210,10 @@ class BillingService
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
                 'service_id' => $service->id,
-                'item_name'  => $service->name, // Snapshot
+                'item_name' => $service->name, // Snapshot
                 'unit_price' => $unitPrice,    // Snapshot
-                'quantity'   => $quantity,
-                'total'      => $itemTotal,
+                'quantity' => $quantity,
+                'total' => $itemTotal,
             ]);
 
             $invoice->recalculateTotals();
@@ -223,7 +227,7 @@ class BillingService
                     try {
                         event(new InvoiceReadyForPayment($invoice));
                     } catch (\Throwable $e) {
-                        logger()->warning('WebSocket broadcast failed in addExtraService: ' . $e->getMessage());
+                        logger()->warning('WebSocket broadcast failed in addExtraService: '.$e->getMessage());
                     }
                 });
             }
@@ -261,7 +265,7 @@ class BillingService
      * Process payment (Cash, Visa, or Split) atomically inside a DB transaction with lockForUpdate.
      * Completes invoice, completes appointment, and broadcasts InvoicePaid.
      *
-     * @param array $paymentsData [['method' => 'cash', 'amount' => 100], ['method' => 'visa', 'amount' => 50, 'transaction_reference' => '...']]
+     * @param  array  $paymentsData  [['method' => 'cash', 'amount' => 100], ['method' => 'visa', 'amount' => 50, 'transaction_reference' => '...']]
      */
     public function processPayment(string $invoiceId, array $paymentsData, ?int $cashierId = null): Invoice
     {
@@ -287,8 +291,8 @@ class BillingService
                     throw new \InvalidArgumentException('يجب أن يكون مبلغ الدفعة أكبر من صفر.');
                 }
                 $method = $entry['method'] ?? null;
-                if (!in_array($method, PaymentMethod::values())) {
-                    throw new \InvalidArgumentException('طريقة الدفع غير صالحة: ' . $method);
+                if (! in_array($method, PaymentMethod::values())) {
+                    throw new \InvalidArgumentException('طريقة الدفع غير صالحة: '.$method);
                 }
                 $totalPaid += $amount;
             }
@@ -301,60 +305,64 @@ class BillingService
             // Create individual payment records
             foreach ($paymentsData as $entry) {
                 Payment::create([
-                    'invoice_id'            => $invoice->id,
-                    'cashier_id'           => $cashierId ?? auth()->id(),
-                    'amount'                => (float) $entry['amount'],
-                    'payment_method'        => $entry['method'],
+                    'invoice_id' => $invoice->id,
+                    'cashier_id' => $cashierId ?? auth()->id(),
+                    'amount' => (float) $entry['amount'],
+                    'payment_method' => $entry['method'],
                     'transaction_reference' => $entry['transaction_reference'] ?? null,
-                    'paid_at'               => now(),
+                    'paid_at' => now(),
                 ]);
             }
 
             // Update invoice status
             $invoice->update([
                 'payment_status' => PaymentStatus::PAID->value,
-                'paid_at'        => now(),
+                'paid_at' => now(),
             ]);
 
-            // Transition appointment and live queue status to completed
-            if ($invoice->appointment_id) {
-                Appointment::where('id', $invoice->appointment_id)->update([
-                    'status' => AppointmentStatus::COMPLETED->value,
-                ]);
+            // Transition live queue status to completed (via encounter_id or appointment_id)
+            LiveQueue::where(function ($q) use ($invoice) {
+                if ($invoice->encounter_id) {
+                    $q->where('encounter_id', $invoice->encounter_id);
+                }
+                if ($invoice->appointment_id) {
+                    $q->orWhere('appointment_id', $invoice->appointment_id);
+                }
+            })->update([
+                'status' => LiveQueueStatus::COMPLETED->value,
+            ]);
 
-                LiveQueue::where('appointment_id', $invoice->appointment_id)->update([
-                    'status' => LiveQueueStatus::COMPLETED->value,
+            // Transition appointment status if present
+            $appointmentId = $invoice->appointment_id ?? ($invoice->encounter?->appointment_id);
+            if ($appointmentId) {
+                Appointment::where('id', $appointmentId)->update([
+                    'status' => AppointmentStatus::COMPLETED->value,
                 ]);
             }
 
             // Transition encounter status to completed if not already completed
             if ($invoice->encounter_id) {
                 $enc = Encounter::where('id', $invoice->encounter_id)->first();
-                if ($enc) {
-                    if ($enc->status !== EncounterStatus::COMPLETED) {
-                        $enc->update([
-                            'status'       => EncounterStatus::COMPLETED->value,
-                            'completed_at' => now(),
-                        ]);
-                    }
-                    if ($enc->appointment_id) {
-                        Appointment::where('id', $enc->appointment_id)->update([
-                            'status' => AppointmentStatus::COMPLETED->value,
-                        ]);
-
-                        LiveQueue::where('appointment_id', $enc->appointment_id)->update([
-                            'status' => LiveQueueStatus::COMPLETED->value,
-                        ]);
-                    }
+                if ($enc && $enc->status !== EncounterStatus::COMPLETED) {
+                    $enc->update([
+                        'status' => EncounterStatus::COMPLETED->value,
+                        'completed_at' => now(),
+                    ]);
                 }
             }
 
-            // Broadcast InvoicePaid event
-            DB::afterCommit(function () use ($invoice) {
+            // Broadcast InvoicePaid & LiveQueueUpdated events
+            $branchId = $invoice->branch_id;
+            DB::afterCommit(function () use ($invoice, $branchId) {
                 try {
                     event(new InvoicePaid($invoice));
                 } catch (\Throwable $e) {
-                    logger()->warning('WebSocket broadcast failed in processPayment: ' . $e->getMessage());
+                    logger()->warning('WebSocket broadcast failed in processPayment: '.$e->getMessage());
+                }
+                try {
+                    event(new LiveQueueUpdated($branchId));
+                } catch (\Throwable $e) {
+                    logger()->warning('WebSocket broadcast failed for queue in processPayment: '.$e->getMessage());
                 }
             });
 
@@ -377,29 +385,112 @@ class BillingService
             try {
                 event(new InvoiceReadyForPayment($invoice));
             } catch (\Throwable $e) {
-                logger()->warning('WebSocket broadcast failed in markInvoiceReadyForPayment: ' . $e->getMessage());
+                logger()->warning('WebSocket broadcast failed in markInvoiceReadyForPayment: '.$e->getMessage());
             }
         });
     }
 
     /**
      * Get pending invoices for a specific branch (for reception live payment drawer).
-     * Only returns invoices where the appointment has reached the pending_payment stage,
+     * Returns unpaid invoices where the appointment or encounter has completed examination,
      * preventing premature display while patients are still waiting or under examination.
      */
     public function getPendingInvoices(string $branchId): Collection
     {
         return Invoice::where('branch_id', $branchId)
             ->where('payment_status', '!=', PaymentStatus::PAID->value)
-            ->whereHas('appointment', function ($query) {
-                $query->whereIn('status', [
-                    AppointmentStatus::PENDING_PAYMENT->value,
-                    'pending_payment',
-                ]);
+            ->where(function ($query) {
+                // If linked to an appointment, only show if reached pending_payment or completed
+                $query->whereHas('appointment', function ($q) {
+                    $q->whereIn('status', [
+                        AppointmentStatus::PENDING_PAYMENT->value,
+                        'pending_payment',
+                        AppointmentStatus::COMPLETED->value,
+                        'completed',
+                    ]);
+                })
+                // OR if linked to an encounter (e.g. walk-in), show if encounter is completed
+                ->orWhereHas('encounter', function ($q) {
+                    $q->whereIn('status', [
+                        EncounterStatus::COMPLETED->value,
+                        'completed',
+                    ]);
+                })
+                // OR if invoice has neither (standalone invoice created for patient)
+                ->orWhere(function ($q) {
+                    $q->whereNull('appointment_id')->whereNull('encounter_id');
+                });
             })
-            ->with(['patient', 'appointment.doctor', 'items'])
+            ->with(['patient', 'appointment.doctor', 'encounter.doctor', 'items'])
             ->orderByDesc('created_at')
             ->get();
+    }
+
+    /**
+     * Get or create an invoice for a specific queue item (walk-in or appointment-backed).
+     */
+    public function getOrCreateInvoiceForQueueItem(LiveQueue $queueItem): Invoice
+    {
+        if ($queueItem->encounter_id) {
+            $encounter = Encounter::find($queueItem->encounter_id);
+            if ($encounter) {
+                return $this->createInvoiceForEncounter($encounter);
+            }
+        }
+
+        if ($queueItem->appointment_id) {
+            $appointment = Appointment::find($queueItem->appointment_id);
+            if ($appointment) {
+                return $this->createInvoiceForAppointment($appointment);
+            }
+        }
+
+        // For walk-in without encounter yet, find existing unpaid invoice or create one
+        $existing = Invoice::where('patient_id', $queueItem->patient_id)
+            ->where('branch_id', $queueItem->branch_id)
+            ->where('payment_status', '!=', PaymentStatus::PAID->value)
+            ->latest()
+            ->first();
+
+        if ($existing) {
+            return $existing->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor']);
+        }
+
+        $invoiceNumber = $this->generateInvoiceNumber();
+        $invoice = Invoice::create([
+            'invoice_number' => $invoiceNumber,
+            'patient_id'     => $queueItem->patient_id,
+            'branch_id'      => $queueItem->branch_id,
+            'subtotal'       => 0.00,
+            'discount'       => 0.00,
+            'total'          => 0.00,
+            'payment_status' => PaymentStatus::UNPAID->value,
+        ]);
+
+        // Default consultation service snapshot
+        $consultationService = Service::whereIn('code', ['CONSULTATION', 'GEN-01'])->first()
+            ?? Service::first();
+
+        $unitPrice = 150.00;
+        if ($consultationService) {
+            $branchOverride = BranchService::where('branch_id', $queueItem->branch_id)
+                ->where('service_id', $consultationService->id)
+                ->where('is_available', true)
+                ->value('price');
+
+            $unitPrice = $branchOverride !== null ? (float) $branchOverride : (float) $consultationService->default_price;
+        }
+
+        InvoiceItem::create([
+            'invoice_id' => $invoice->id,
+            'service_id' => $consultationService?->id,
+            'item_name'  => $consultationService?->name ?? 'كشف استشاري',
+            'unit_price' => $unitPrice,
+            'quantity'   => 1,
+            'total'      => $unitPrice,
+        ]);
+
+        return $invoice->recalculateTotals()->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor']);
     }
 
     /**
@@ -410,19 +501,21 @@ class BillingService
         $query = Invoice::where('branch_id', $branchId)
             ->with(['patient', 'appointment.doctor', 'items', 'payments.cashier']);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('payment_status', $filters['status']);
         }
 
-        if (!empty($filters['date'])) {
-            $query->whereDate('created_at', $filters['date']);
+        if (! empty($filters['date'])) {
+            $startDate = Carbon::parse($filters['date'])->startOfDay();
+            $endDate = Carbon::parse($filters['date'])->endOfDay();
+            $query->whereBetween('created_at', [$startDate, $endDate]);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('patient', fn ($pq) => $pq->where('name', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"));
+                    ->orWhereHas('patient', fn ($pq) => $pq->where('name', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"));
             });
         }
 
@@ -442,12 +535,13 @@ class BillingService
 
         return $services->map(function ($svc) use ($overrides) {
             $override = $overrides->get($svc->id);
+
             return [
-                'id'            => (string) $svc->id,
-                'name'          => $svc->name,
-                'code'          => $svc->code,
-                'price'         => $override ? (float) $override->price : (float) $svc->default_price,
-                'is_available'  => $override ? (bool) $override->is_available : true,
+                'id' => (string) $svc->id,
+                'name' => $svc->name,
+                'code' => $svc->code,
+                'price' => $override ? (float) $override->price : (float) $svc->default_price,
+                'is_available' => $override ? (bool) $override->is_available : true,
             ];
         });
     }
@@ -460,20 +554,20 @@ class BillingService
         return DB::transaction(function () use ($data, $branchId) {
             $price = (float) ($data['price'] ?? $data['default_price'] ?? 0);
             $service = Service::create([
-                'name'          => $data['name'],
-                'code'          => $data['code'] ?? strtoupper(Str::slug($data['name'], '_')),
+                'name' => $data['name'],
+                'code' => $data['code'] ?? strtoupper(Str::slug($data['name'], '_')),
                 'default_price' => $price,
-                'is_active'     => $data['is_active'] ?? true,
+                'is_active' => $data['is_active'] ?? true,
             ]);
 
             if ($branchId) {
                 BranchService::updateOrCreate(
                     [
-                        'branch_id'  => $branchId,
+                        'branch_id' => $branchId,
                         'service_id' => $service->id,
                     ],
                     [
-                        'price'        => $price,
+                        'price' => $price,
                         'is_available' => true,
                     ]
                 );
@@ -505,7 +599,7 @@ class BillingService
                 $updates['is_active'] = (bool) $data['is_active'];
             }
 
-            if (!empty($updates)) {
+            if (! empty($updates)) {
                 $service->update($updates);
             }
 
@@ -513,11 +607,11 @@ class BillingService
                 $price = (float) ($data['price'] ?? $data['default_price']);
                 BranchService::updateOrCreate(
                     [
-                        'branch_id'  => $branchId,
+                        'branch_id' => $branchId,
                         'service_id' => $service->id,
                     ],
                     [
-                        'price'        => $price,
+                        'price' => $price,
                         'is_available' => true,
                     ]
                 );
@@ -533,6 +627,7 @@ class BillingService
     public function deleteService(string $serviceId): bool
     {
         $service = Service::findOrFail($serviceId);
+
         return (bool) $service->update(['is_active' => false]);
     }
 
@@ -541,9 +636,9 @@ class BillingService
      */
     protected function generateInvoiceNumber(): string
     {
-        $prefix = 'INV-' . now()->format('Ymd') . '-';
+        $prefix = 'INV-'.now()->format('Ymd').'-';
         $random = strtoupper(Str::random(5));
 
-        return $prefix . $random;
+        return $prefix.$random;
     }
 }

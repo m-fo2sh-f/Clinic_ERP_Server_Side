@@ -14,17 +14,23 @@ class SetBranchContext
             setPermissionsTeamId(tenant('id'));
         }
 
-        $branchId = $request->header('X-Branch-ID');
+        $branchId = $request->header('X-Branch-ID') ?: $request->input('branch_id');
         $user = $request->user();
 
         if ($branchId) {
             // التحقق من صلاحية المستخدم على الفرع (IDOR Protection)
             if ($user && method_exists($user, 'branches')) {
-                $hasAccess = $user->branches()->where('branches.id', $branchId)->exists();
-                if (!$hasAccess) {
-                    return response()->json([
-                        'message' => 'غير مصرح لك بالوصول لبيانات هذا الفرع.'
-                    ], 403);
+                $isOwnerOrSuper = $user->hasRole('clinic_owner') || (bool) ($user->is_super_admin ?? false);
+                if (! $isOwnerOrSuper) {
+                    $hasAccess = $user->branches()->where('branches.id', $branchId)->exists();
+                    if (! $hasAccess) {
+                        return response()->json([
+                            'success' => false,
+                            'error_code' => 'BRANCH_ACCESS_DENIED',
+                            'message' => 'عذراً، ليس لديك صلاحية للوصول إلى هذا السجل أو هذا الفرع.',
+                            'details' => [],
+                        ], 403);
+                    }
                 }
             }
 

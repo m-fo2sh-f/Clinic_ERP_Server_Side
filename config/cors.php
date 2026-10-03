@@ -26,6 +26,7 @@ return [
         '#^https?://localhost(:[0-9]+)?$#',
         '#^https?://127\.0\.0\.1(:[0-9]+)?$#',
         '#^https?://(.*\.)?my-saas\.test(:[0-9]+)?$#',
+        '#^https?://(.*\.)?' . preg_quote(env('APP_DOMAIN', 'my-saas.com'), '#') . '(:[0-9]+)?$#',
     ],
 
     'allowed_headers' => ['*'],

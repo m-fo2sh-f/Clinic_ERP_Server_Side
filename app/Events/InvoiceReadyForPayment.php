@@ -24,7 +24,11 @@ class InvoiceReadyForPayment implements ShouldBroadcastNow
     {
         $this->branchId = (string) $invoice->branch_id;
 
-        $invoice->loadMissing(['patient', 'appointment.doctor', 'items']);
+        $invoice->loadMissing(['patient', 'appointment.doctor', 'encounter.doctor', 'items']);
+
+        $doctorName = $invoice->appointment?->doctor?->name
+            ?? $invoice->encounter?->doctor?->name
+            ?? 'طبيب';
 
         $this->invoiceData = [
             'invoice_id'     => (string) $invoice->id,
@@ -32,7 +36,7 @@ class InvoiceReadyForPayment implements ShouldBroadcastNow
             'appointment_id' => (string) $invoice->appointment_id,
             'patient_id'     => (string) $invoice->patient_id,
             'patient_name'   => $invoice->patient?->name ?? 'مريض',
-            'doctor_name'    => $invoice->appointment?->doctor?->name ?? 'طبيب',
+            'doctor_name'    => $doctorName,
             'subtotal'       => (float) $invoice->subtotal,
             'discount'       => (float) $invoice->discount,
             'total'          => (float) $invoice->total,

@@ -165,4 +165,58 @@ class EncounterController extends Controller
             'data'   => new EncounterResource($encounter),
         ], 200);
     }
+
+    /**
+     * Get active in_progress encounter for the authenticated doctor (session recovery).
+     * GET /api/v1/encounters/active
+     */
+    public function active(Request $request): JsonResponse
+    {
+        $branchId = (string) $request->query('branch_id');
+        if (!$branchId) {
+            $branchId = (string) $request->user()->branches()->first()?->id;
+        }
+
+        if (!$branchId) {
+            return response()->json(['status' => 'error', 'message' => 'يجب تحديد الفرع'], 422);
+        }
+
+        $this->authorizeBranchAccess($request->user(), $branchId);
+
+        $doctorId = (int) $request->user()->id;
+        $encounter = $this->encounterService->getActiveEncounterForDoctor($doctorId, $branchId);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $encounter ? new EncounterResource($encounter) : null,
+        ], 200);
+    }
+
+    /**
+     * Abandon an in-progress encounter (Doctor Abandon / Patient Absent).
+     * POST /api/v1/encounters/{id}/abandon
+     */
+    public function abandon(Request $request, string $id): JsonResponse
+    {
+        $doctorId = (int) $request->user()->id;
+
+        $encounter = Encounter::findOrFail($id);
+        $this->authorizeBranchAccess($request->user(), $encounter->branch_id);
+
+        try {
+            $abandoned = $this->encounterService->abandonEncounter($id, $doctorId);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'تم إلغاء جلسة الكشف بنجاح',
+                'data'    => new EncounterResource($abandoned),
+            ], 200);
+        } catch (\InvalidArgumentException $e) {
+            $code = $e->getCode() === 409 ? 409 : ($e->getCode() === 403 ? 403 : 422);
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], $code);
+        }
+    }
 }

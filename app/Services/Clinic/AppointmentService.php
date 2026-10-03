@@ -3,21 +3,18 @@
 namespace App\Services\Clinic;
 
 use App\Enums\AppointmentStatus;
-use App\Enums\LiveQueueStatus;
+use App\Helpers\ShiftHelper;
 use App\Models\Appointment;
+use App\Models\LiveQueue;
 use App\Models\Patient;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use App\Services\Clinic\LiveQueueService;
-use App\Services\Clinic\PatientService;
-use App\Services\Clinic\BillingService;
-use App\Models\LiveQueue;
-use App\Helpers\ShiftHelper;
 
-class AppointmentService 
+class AppointmentService
 {
     private LiveQueueService $liveQueueService;
+
     private PatientService $patientService;
+
     private BillingService $billingService;
 
     public function __construct(
@@ -26,8 +23,8 @@ class AppointmentService
         BillingService $billingService
     ) {
         $this->liveQueueService = $liveQueueService;
-        $this->patientService   = $patientService;
-        $this->billingService   = $billingService;
+        $this->patientService = $patientService;
+        $this->billingService = $billingService;
     }
 
     public function getAllAppointmentsForBranch(int|string $branchId, ?string $date = null, int|string|null $doctorId = null)
@@ -38,7 +35,7 @@ class AppointmentService
             ->with(['patient', 'doctor', 'branch'])
             ->whereBetween('appointment_time', [$startTime, $endTime]);
 
-        if (!empty($doctorId)) {
+        if (! empty($doctorId)) {
             $query->where(function ($q) use ($doctorId) {
                 $q->where('doctor_id', $doctorId)->orWhereNull('doctor_id');
             });
@@ -50,15 +47,32 @@ class AppointmentService
     public function createAppointment(array $data): Appointment
     {
         return DB::transaction(function () use ($data) {
+            $doctorId = $data['doctor_id'] ?? null;
+            $branchId = $data['branch_id'];
+            $appointmentTime = $data['appointment_time'];
+
+            if (! empty($doctorId)) {
+                $hasConflict = Appointment::where('branch_id', $branchId)
+                    ->where('doctor_id', $doctorId)
+                    ->where('appointment_time', $appointmentTime)
+                    ->whereNotIn('status', [AppointmentStatus::CANCELLED->value])
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($hasConflict) {
+                    throw new \InvalidArgumentException('يوجد موعد آخر مسجل بالفعل لهذا الطبيب في نفس هذا التوقيت.', 422);
+                }
+            }
+
             $patientId = $this->patientService->resolvePatient($data);
 
             return Appointment::create([
-                'branch_id'        => $data['branch_id'],
-                'patient_id'       => $patientId,
-                'doctor_id'        => $data['doctor_id'] ?? null,
-                'appointment_time' => $data['appointment_time'],
-                'type'             => $data['type'],
-                'status'           => $data['status'] ?? AppointmentStatus::BOOKING->value,
+                'branch_id' => $branchId,
+                'patient_id' => $patientId,
+                'doctor_id' => $doctorId,
+                'appointment_time' => $appointmentTime,
+                'type' => $data['type'],
+                'status' => $data['status'] ?? AppointmentStatus::BOOKING->value,
             ]);
         });
     }
@@ -68,19 +82,37 @@ class AppointmentService
         return DB::transaction(function () use ($id, $data) {
             $appointment = Appointment::lockForUpdate()->with('patient')->findOrFail($id);
 
+            $newDoctorId = $data['doctor_id'] ?? $appointment->doctor_id;
+            $newTime = $data['appointment_time'] ?? $appointment->appointment_time;
+            $newBranchId = $data['branch_id'] ?? $appointment->branch_id;
+
+            if ($newDoctorId && $newTime && (isset($data['appointment_time']) || isset($data['doctor_id']))) {
+                $hasConflict = Appointment::where('branch_id', $newBranchId)
+                    ->where('doctor_id', $newDoctorId)
+                    ->where('appointment_time', $newTime)
+                    ->where('id', '!=', $appointment->id)
+                    ->whereNotIn('status', [AppointmentStatus::CANCELLED->value])
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($hasConflict) {
+                    throw new \InvalidArgumentException('يوجد موعد آخر مسجل بالفعل لهذا الطبيب في نفس هذا التوقيت.', 422);
+                }
+            }
+
             // Update appointment metadata
             $appointment->update(array_filter([
                 'appointment_time' => $data['appointment_time'] ?? null,
-                'type'             => $data['type']             ?? null, 
-                'status'           => $data['status']           ?? null,
-                'branch_id'        => $data['branch_id']        ?? null,
-                'doctor_id'        => $data['doctor_id']        ?? null,
-            ], fn($v) => !is_null($v)));
+                'type' => $data['type'] ?? null,
+                'status' => $data['status'] ?? null,
+                'branch_id' => $data['branch_id'] ?? null,
+                'doctor_id' => $data['doctor_id'] ?? null,
+            ], fn ($v) => ! is_null($v)));
 
             $strategy = $data['strategy'] ?? null;
 
             // Strategy 1: REASSIGN_EXISTING patient
-            if ($strategy === 'REASSIGN_EXISTING' || (!empty($data['patient_id']) && $data['patient_id'] !== $appointment->patient_id)) {
+            if ($strategy === 'REASSIGN_EXISTING' || (! empty($data['patient_id']) && $data['patient_id'] !== $appointment->patient_id)) {
                 $targetPatientId = $data['patient_id'] ?? $this->patientService->resolvePatient($data);
                 $appointment->update(['patient_id' => $targetPatientId]);
             }
@@ -92,14 +124,14 @@ class AppointmentService
             }
             // Strategy 3: UPDATE_CURRENT patient's demographic details
             elseif ($strategy === 'UPDATE_CURRENT') {
-                if ($appointment->patient_id && !empty($data['patient'])) {
+                if ($appointment->patient_id && ! empty($data['patient'])) {
                     $this->patientService->updatePatientDetails($appointment->patient_id, $data['patient']);
                 }
             }
             // BACKWARD COMPATIBILITY FALLBACK (Strategy omitted)
-            elseif (!empty($data['patient'])) {
+            elseif (! empty($data['patient'])) {
                 $currentPatient = $appointment->patient;
-                $incomingName  = isset($data['patient']['name']) ? trim($data['patient']['name']) : null;
+                $incomingName = isset($data['patient']['name']) ? trim($data['patient']['name']) : null;
                 $incomingPhone = isset($data['patient']['phone']) ? trim($data['patient']['phone']) : null;
 
                 $isIdentityChanged = false;
@@ -121,6 +153,7 @@ class AppointmentService
             }
 
             $appointment->load('patient');
+
             return $appointment;
         });
     }
@@ -130,8 +163,8 @@ class AppointmentService
         return DB::transaction(function () use ($id) {
             $appointment = Appointment::lockForUpdate()->findOrFail($id);
 
-            $currentStatus = $appointment->status instanceof AppointmentStatus 
-                ? $appointment->status->value 
+            $currentStatus = $appointment->status instanceof AppointmentStatus
+                ? $appointment->status->value
                 : $appointment->status;
 
             if ($currentStatus === AppointmentStatus::COMPLETED->value) {
@@ -151,8 +184,8 @@ class AppointmentService
     {
         return DB::transaction(function () use ($appointmentId) {
             $appointment = Appointment::lockForUpdate()->findOrFail($appointmentId);
-            $currentStatus = $appointment->status instanceof AppointmentStatus 
-                ? $appointment->status->value 
+            $currentStatus = $appointment->status instanceof AppointmentStatus
+                ? $appointment->status->value
                 : $appointment->status;
 
             if (in_array($currentStatus, [
@@ -164,49 +197,24 @@ class AppointmentService
 
             $appointment->update(['status' => AppointmentStatus::CHECKED_IN->value]);
 
-            // Auto-create invoice with consultation fee snapshot
-            $this->billingService->createInvoiceForAppointment($appointment);
-
             $existingQueue = LiveQueue::where('appointment_id', $appointment->id)->first();
             if ($existingQueue) {
                 return $existingQueue;
             }
 
             return $this->liveQueueService->createNewPatientInQueue([
-                'patient_id'     => $appointment->patient_id,
+                'patient_id' => $appointment->patient_id,
                 'appointment_id' => $appointment->id,
-                'doctor_id'      => $appointment->doctor_id,
+                'doctor_id' => $appointment->doctor_id,
             ], $appointment->branch_id);
         });
     }
 
     /**
-     * Check-in a Walk-In patient with automatic Appointment SSOT ledger record creation.
+     * Check-in a Walk-In patient directly into the live queue (No Appointment & No Invoice).
      */
     public function checkInWalkIn(array $data, string $branchId): LiveQueue
     {
-        return DB::transaction(function () use ($data, $branchId) {
-            $patientId = $this->patientService->resolvePatient($data);
-            $doctorId  = $data['doctor_id'] ?? null;
-
-            $appointment = Appointment::create([
-                'branch_id'        => $branchId,
-                'patient_id'       => $patientId,
-                'doctor_id'        => $doctorId,
-                'appointment_time' => now(),
-                'type'             => $data['type'] ?? 'check_up',
-                'status'           => AppointmentStatus::CHECKED_IN->value,
-            ]);
-
-            // Auto-create invoice with consultation fee snapshot
-            $this->billingService->createInvoiceForAppointment($appointment);
-
-            // 2. Insert patient into live operational queue
-            return $this->liveQueueService->createNewPatientInQueue([
-                'patient_id'     => $patientId,
-                'appointment_id' => $appointment->id,
-                'doctor_id'      => $doctorId,
-            ], $branchId);
-        });
+        return $this->liveQueueService->checkInWalkIn($data, $branchId);
     }
 }

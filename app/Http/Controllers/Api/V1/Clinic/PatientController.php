@@ -3,23 +3,20 @@
 namespace App\Http\Controllers\Api\V1\Clinic;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
+use App\Http\Resources\Api\V1\Patient\PatientHistoryResource;
+use App\Http\Resources\Api\V1\Patient\PatientResource;
 use App\Models\Patient;
 use App\Services\Clinic\PatientService;
-use App\Services\Clinic\ConsultationService;
-use App\Http\Resources\Api\V1\Patient\PatientResource;
-use App\Http\Resources\Api\V1\Patient\PatientHistoryResource;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PatientController extends Controller
 {
     private PatientService $patientService;
-    private ConsultationService $consultationService;
 
-    public function __construct(PatientService $patientService, ConsultationService $consultationService)
+    public function __construct(PatientService $patientService)
     {
         $this->patientService = $patientService;
-        $this->consultationService = $consultationService;
     }
 
     /**
@@ -29,11 +26,11 @@ class PatientController extends Controller
     {
         $request->validate([
             'branch_id' => 'nullable|exists:branches,id',
-            'search'    => 'nullable|string|max:100',
+            'search' => 'nullable|string|max:100',
         ]);
 
         $branchId = $request->query('branch_id');
-        $search   = $request->query('search');
+        $search = $request->query('search');
 
         if ($branchId) {
             $this->authorizeBranchAccess($request->user(), $branchId);
@@ -43,7 +40,7 @@ class PatientController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => PatientResource::collection($patients),
+            'data' => PatientResource::collection($patients),
         ]);
     }
 
@@ -59,20 +56,64 @@ class PatientController extends Controller
             $this->authorizeBranchAccess($user, $branchId);
         }
 
-        if ($user && $user->hasRole('receptionist') && !$user->hasAnyRole(['doctor', 'clinic_owner'])) {
+        $isMedicalStaff = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['doctor', 'clinic_owner']);
+
+        if (! $isMedicalStaff) {
             $patient = $this->patientService->show($id, $branchId);
+
             return response()->json([
                 'status' => 'success',
-                'data'   => new PatientResource($patient),
+                'data' => new PatientResource($patient),
             ]);
         }
 
-        $patient = $this->consultationService->getPatientHistory($id, $branchId);
+        $patient = $this->patientService->getPatientHistory($id, $branchId);
 
         return response()->json([
             'status' => 'success',
-            'data'   => new PatientHistoryResource($patient),
+            'data' => new PatientHistoryResource($patient),
         ]);
+    }
+
+    /**
+     * POST /patients — Store a newly created patient record.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $isMedicalStaff = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['doctor', 'clinic_owner']);
+
+        $rules = [
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:50',
+            'gender' => 'nullable|in:male,female',
+            'age' => 'nullable|integer|min:0|max:150',
+            'date_of_birth' => 'nullable|date',
+            'blood_group' => 'nullable|string|max:10',
+            'branch_id' => 'nullable|exists:branches,id',
+        ];
+
+        if ($isMedicalStaff) {
+            $rules['chronic_diseases'] = 'nullable|string|max:1000';
+            $rules['allergies'] = 'nullable|string|max:1000';
+            $rules['surgeries'] = 'nullable|string|max:1000';
+            $rules['medical_history'] = 'nullable|string|max:2000';
+        }
+
+        $validated = $request->validate($rules);
+
+        if (! empty($validated['branch_id'])) {
+            $this->authorizeBranchAccess($user, $validated['branch_id']);
+            unset($validated['branch_id']);
+        }
+
+        $patient = $this->patientService->createPatient($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Patient created successfully',
+            'data' => new PatientResource($patient),
+        ], 201);
     }
 
     /**
@@ -81,40 +122,46 @@ class PatientController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $patient = Patient::findOrFail($id);
+        $user = $request->user();
 
         // 🔒 1. التحقق من صلاحية الفرع إذا تم تمريره في الطلب
         if ($request->filled('branch_id')) {
-            $this->authorizeBranchAccess($request->user(), $request->branch_id);
+            $this->authorizeBranchAccess($user, $request->branch_id);
         }
 
-        // 🩺 2. القواعد الأساسية المسموحة لجميع الأدوار الطبية (البيانات السريرية والديموغرافية)
+        $isMedicalStaff = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['doctor', 'clinic_owner']);
+
+        // 📋 2. القواعد الديموغرافية الأساسية المسموحة للجميع
         $rules = [
-            'gender'           => 'nullable|in:male,female',
-            'age'              => 'nullable|integer|min:0|max:150',
-            'date_of_birth'    => 'nullable|date',
-            'blood_group'      => 'nullable|string|max:10',
-            'chronic_diseases' => 'nullable|string|max:1000',
-            'allergies'        => 'nullable|string|max:1000',
-            'surgeries'        => 'nullable|string|max:1000',
-            'medical_history'  => 'nullable|string|max:2000',
-            'branch_id'        => 'nullable|exists:branches,id',
+            'name' => 'sometimes|required|string|max:255',
+            'phone' => 'sometimes|required|string|max:50',
+            'gender' => 'nullable|in:male,female',
+            'age' => 'nullable|integer|min:0|max:150',
+            'date_of_birth' => 'nullable|date',
+            'blood_group' => 'nullable|string|max:10',
+            'branch_id' => 'nullable|exists:branches,id',
         ];
 
-        // 📋 3. قصر تعديل الاسم والهاتف على الريسبشن ومالك العيادة فقط
-        if ($request->user()->hasAnyRole(['receptionist', 'clinic_owner'])) {
-            $rules['name']  = 'sometimes|required|string|max:255';
-            $rules['phone'] = 'sometimes|required|string|max:50';
+        // 🩺 حصر تعديل البيانات الطبية السريرية الحساسة على الطبيب ومالك العيادة فقط
+        if ($isMedicalStaff) {
+            $rules['chronic_diseases'] = 'nullable|string|max:1000';
+            $rules['allergies'] = 'nullable|string|max:1000';
+            $rules['surgeries'] = 'nullable|string|max:1000';
+            $rules['medical_history'] = 'nullable|string|max:2000';
         }
 
         $validated = $request->validate($rules);
 
-        // إزالة القيم الفارغة وتحديث السجل
-        $patient->update(array_filter($validated, fn ($val) => !is_null($val)));
+        // جدول المرضى لا يحتوي على عمود branch_id (المرضى على مستوى العيادة)
+        unset($validated['branch_id']);
+
+        // تحديث السجل بالبيانات الصالحة مع دعم تصفير الحقول الاختيارية (null)
+        $patient->update($validated);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Patient profile updated successfully',
-            'data'    => new PatientResource($patient),
+            'data' => new PatientResource($patient),
         ], 200);
     }
 
@@ -130,48 +177,54 @@ class PatientController extends Controller
             return response()->json(['status' => 'success', 'data' => []]);
         }
 
+        // 🔒 استبعاد البيانات الطبية الحساسة (chronic_diseases, allergies) لحماية الخصوصية
         $patients = Patient::query()
             ->where(function ($q) use ($query) {
                 $q->where('name', 'LIKE', "%{$query}%")
-                  ->orWhere('phone', 'LIKE', "%{$query}%")
-                  ->orWhere('medical_number', 'LIKE', "%{$query}%");
+                    ->orWhere('phone', 'LIKE', "%{$query}%")
+                    ->orWhere('medical_number', 'LIKE', "%{$query}%");
             })
-            ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender', 'blood_group', 'allergies', 'chronic_diseases'])
+            ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender', 'blood_group'])
             ->limit(15)
             ->get();
 
         return response()->json([
             'status' => 'success',
-            'data'   => $patients
+            'data' => $patients,
         ]);
     }
 
     /**
      * GET /patients/{id}/medical-profile — Medical background and past encounters.
      */
-    public function medicalProfile(string $id): JsonResponse
+    public function medicalProfile(Request $request, string $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && ! $user->hasAnyRole(['doctor', 'clinic_owner'])) {
+            abort(403, 'غير مصرح لموظف الاستقبال بالاطلاع على الملف الطبي السريري للمريض.');
+        }
+
         $patient = Patient::with([
             'encounters' => fn ($q) => $q->orderByDesc('created_at')->limit(10)->with(['doctor', 'prescription.items']),
-            'invoices'   => fn ($q) => $q->orderByDesc('created_at')->limit(5)->with('payments'),
+            'invoices' => fn ($q) => $q->orderByDesc('created_at')->limit(5)->with('payments'),
         ])->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
-                'id'               => $patient->id,
-                'name'             => $patient->name,
-                'phone'            => $patient->phone,
-                'medical_number'   => $patient->medical_number,
-                'age'              => $patient->age,
-                'gender'           => $patient->gender,
-                'blood_group'      => $patient->blood_group,
+            'data' => [
+                'id' => $patient->id,
+                'name' => $patient->name,
+                'phone' => $patient->phone,
+                'medical_number' => $patient->medical_number,
+                'age' => $patient->age,
+                'gender' => $patient->gender,
+                'blood_group' => $patient->blood_group,
                 'chronic_diseases' => $patient->chronic_diseases,
-                'allergies'        => $patient->allergies,
-                'surgeries'        => $patient->surgeries,
-                'medical_history'  => $patient->medical_history,
-                'encounters'       => $patient->encounters,
-                'invoices'         => $patient->invoices,
+                'allergies' => $patient->allergies,
+                'surgeries' => $patient->surgeries,
+                'medical_history' => $patient->medical_history,
+                'encounters' => $patient->encounters,
+                'invoices' => $patient->invoices,
             ],
         ]);
     }
@@ -185,7 +238,7 @@ class PatientController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $summary,
+            'data' => $summary,
         ]);
     }
 
@@ -194,12 +247,36 @@ class PatientController extends Controller
      */
     public function getHistory(Request $request, string $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && method_exists($user, 'hasAnyRole') && ! $user->hasAnyRole(['doctor', 'clinic_owner'])) {
+            abort(403, 'غير مصرح لموظف الاستقبال بالاطلاع على السجل الطبي للمريض.');
+        }
+
         $branchId = $request->query('branch_id');
-        $patient = $this->consultationService->getPatientHistory($id, $branchId);
+        $patient = $this->patientService->getPatientHistory($id, $branchId);
 
         return response()->json([
             'status' => 'success',
-            'data'   => new PatientHistoryResource($patient),
+            'data' => new PatientHistoryResource($patient),
         ]);
+    }
+
+    /**
+     * DELETE /patients/{id} — Delete patient record (clinic_owner only).
+     */
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && method_exists($user, 'hasRole') && ! $user->hasRole('clinic_owner')) {
+            abort(403, 'حذف ملف المريض مقتصر على مالك العيادة فقط.');
+        }
+
+        $patient = Patient::findOrFail($id);
+        $patient->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'تم حذف ملف المريض بنجاح',
+        ], 200);
     }
 }

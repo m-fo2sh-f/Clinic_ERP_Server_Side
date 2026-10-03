@@ -67,8 +67,18 @@ class Encounter extends Model
         return $this->hasOne(Prescription::class);
     }
 
+    public function prescriptions(): HasOne
+    {
+        return $this->hasOne(Prescription::class);
+    }
+
     public function invoice(): HasOne
     {
         return $this->hasOne(Invoice::class);
+    }
+
+    public function liveQueue(): HasOne
+    {
+        return $this->hasOne(LiveQueue::class);
     }
 }

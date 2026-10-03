@@ -87,6 +87,18 @@ class AuthController extends Controller
             return response()->json(['message' => 'الحساب غير مربوط بأي فرع في هذه العيادة'], 403);
         }
 
+        // إذا كان المستخدم clinic_owner ولا يوجد له فرع مخصص في الجدول الوسيط، إرجاع كافة فروع العيادة
+        if ($branches->isEmpty() && $user->hasRole('clinic_owner')) {
+            $branches = \App\Models\Branch::with('clinicSetting')->get(['id', 'name'])->map(function ($b) {
+                return [
+                    'id'            => $b->id,
+                    'name'          => $b->name,
+                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
+                ];
+            });
+        }
+
         $roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [];
         $permissions = method_exists($user, 'getAllPermissions') ? $user->getAllPermissions()->pluck('name') : [];
 
@@ -159,6 +171,18 @@ class AuthController extends Controller
                 ];
             })
             : collect([]);
+
+        // إذا كان المستخدم clinic_owner ولا يوجد له فرع مخصص في الجدول الوسيط، إرجاع كافة فروع العيادة
+        if ($branches->isEmpty() && $user && $user->hasRole('clinic_owner')) {
+            $branches = \App\Models\Branch::with('clinicSetting')->get(['id', 'name'])->map(function ($b) {
+                return [
+                    'id'            => $b->id,
+                    'name'          => $b->name,
+                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
+                ];
+            });
+        }
 
         $tenant = tenant();
 

@@ -21,6 +21,7 @@ class LiveQueueResource extends JsonResource
             "status"         => $this->status,
             "checked_in_at"  => $this->checked_in_at,
             "appointment_id" => $this->appointment_id,
+            "encounter_id"   => $this->encounter_id,
             "doctor_id"      => $this->doctor_id,
             "patient"        => new PatientResource($this->whenLoaded('patient')),
             "doctor"         => $this->whenLoaded('doctor', fn () => [

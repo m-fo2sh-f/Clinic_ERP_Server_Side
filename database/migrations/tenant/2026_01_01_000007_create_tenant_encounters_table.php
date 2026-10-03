@@ -35,6 +35,7 @@ return new class extends Migration
 
             // Performance Indexes
             $table->index(['branch_id', 'status', 'created_at'], 'idx_encounters_branch_status_created');
+            $table->index(['branch_id', 'doctor_id', 'status'], 'idx_encounters_branch_doc_status');
             $table->index(['patient_id', 'created_at'], 'idx_encounters_patient_created');
             $table->index(['doctor_id', 'created_at'], 'idx_encounters_doctor_created');
             $table->index('appointment_id', 'idx_encounters_appointment');

@@ -7,7 +7,10 @@ enum LiveQueueStatus: string
     case CHECKED_IN        = 'checked_in';
     case WAITING           = 'waiting';
     case UNDER_EXAMINATION = 'under_examination';
+    case PENDING_PAYMENT   = 'pending_payment';
     case COMPLETED         = 'completed';
+    case CANCELLED         = 'cancelled';
+    case NO_SHOW           = 'no_show';
 
     /**
      * Get active queue statuses for branch queries.
@@ -20,6 +23,7 @@ enum LiveQueueStatus: string
             self::CHECKED_IN->value,
             self::WAITING->value,
             self::UNDER_EXAMINATION->value,
+            self::PENDING_PAYMENT->value,
         ];
     }
 
