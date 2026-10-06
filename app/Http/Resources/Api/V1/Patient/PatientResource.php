@@ -74,7 +74,7 @@ class PatientResource extends JsonResource
                         ];
                     }
 
-                    return [
+                    $encounterData = [
                         'id' => (string) $encounter->id,
                         'started_at' => $encounter->started_at?->toIso8601String() ?? $encounter->created_at?->toIso8601String(),
                         'completed_at' => $encounter->completed_at?->toIso8601String(),
@@ -83,13 +83,17 @@ class PatientResource extends JsonResource
                         'doctor_name' => $doctorName,
                         'branch_name' => $branchName,
                         'invoice' => $invoiceData,
-
-                        // 🔒 التفاصيل السريرية الحساسة تظهر فقط للأطباء والمالك (حماية الخصوصية الطبية)
-                        'chief_complaint' => $this->when($isClinicalStaff, $encounter->chief_complaint),
-                        'clinical_examination' => $this->when($isClinicalStaff, $encounter->clinical_examination),
-                        'diagnosis' => $this->when($isClinicalStaff, $encounter->diagnosis),
-                        'vitals' => $this->when($isClinicalStaff, $encounter->vitals),
                     ];
+
+                    // 🔒 التفاصيل السريرية الحساسة تظهر فقط للأطباء والمالك (حماية الخصوصية الطبية)
+                    if ($isClinicalStaff) {
+                        $encounterData['chief_complaint'] = $encounter->chief_complaint;
+                        $encounterData['clinical_examination'] = $encounter->clinical_examination;
+                        $encounterData['diagnosis'] = $encounter->diagnosis;
+                        $encounterData['vitals'] = $encounter->vitals;
+                    }
+
+                    return $encounterData;
                 });
             }),
 
