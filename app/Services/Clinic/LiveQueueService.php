@@ -93,6 +93,7 @@ class LiveQueueService
      */
     public function checkInWalkIn(array $data, string $branchId): LiveQueue
     {
+
         return DB::transaction(function () use ($data, $branchId) {
             $patientId = $data['patient_id'] ?? null;
             if (! $patientId) {

@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Api\V1\Clinic;
 
 use App\Enums\LiveQueueStatus;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\Rule;
-use App\Services\Clinic\LiveQueueService;
-use App\Services\Clinic\AppointmentService;
-use App\Models\LiveQueue;
 use App\Http\Resources\Api\V1\LiveQueue\LiveQueueResource;
 use App\Http\Resources\Api\V1\LiveQueue\PublicLiveQueueResource;
+use App\Models\LiveQueue;
+use App\Models\User;
+use App\Services\Clinic\LiveQueueService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LiveQueueController extends Controller
 {
@@ -25,8 +25,8 @@ class LiveQueueController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            "branch_id" => "required|exists:branches,id",
-            "doctor_id" => "nullable|exists:users,id",
+            'branch_id' => 'required|exists:branches,id',
+            'doctor_id' => 'nullable|exists:users,id',
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
@@ -37,7 +37,7 @@ class LiveQueueController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => LiveQueueResource::collection($queue)
+            'data' => LiveQueueResource::collection($queue),
         ], 200);
     }
 
@@ -47,8 +47,8 @@ class LiveQueueController extends Controller
     public function publicIndex(Request $request): JsonResponse
     {
         $request->validate([
-            "branch_id" => "required|exists:branches,id",
-            "doctor_id" => "nullable|exists:users,id",
+            'branch_id' => 'required|exists:branches,id',
+            'doctor_id' => 'nullable|exists:users,id',
         ]);
 
         $doctorId = $request->query('doctor_id');
@@ -57,14 +57,14 @@ class LiveQueueController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => PublicLiveQueueResource::collection($queue)
+            'data' => PublicLiveQueueResource::collection($queue),
         ], 200);
     }
 
     public function update(Request $request, string $id): JsonResponse
     {
         $request->validate([
-            "status" => ["required", Rule::enum(LiveQueueStatus::class)],
+            'status' => ['required', Rule::enum(LiveQueueStatus::class)],
         ]);
 
         $queueItem = LiveQueue::findOrFail($id);
@@ -74,7 +74,7 @@ class LiveQueueController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => new LiveQueueResource($queue)
+            'data' => new LiveQueueResource($queue),
         ], 200);
     }
 
@@ -86,7 +86,7 @@ class LiveQueueController extends Controller
         $this->liveQueueService->destroyQueueItem($id);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Patient removed from waiting queue successfully',
         ], 200);
     }
@@ -95,20 +95,20 @@ class LiveQueueController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->hasAnyRole(['receptionist', 'clinic_owner', 'doctor'])) {
+        if (! $user->hasAnyRole(['receptionist', 'clinic_owner', 'doctor'])) {
             abort(403, 'غير مصرح لك بإعادة ترتيب طابور الانتظار.');
         }
 
         $request->validate([
-            'ordered_ids'   => 'required|array',
+            'ordered_ids' => 'required|array',
             'ordered_ids.*' => 'required|string',
-            'branch_id'     => 'required|string',
+            'branch_id' => 'required|string',
         ]);
 
         $this->authorizeBranchAccess($user, $request->branch_id);
 
         // If user is a doctor without receptionist/owner role, verify they are only reordering their own queue
-        if ($user->hasRole('doctor') && !$user->hasAnyRole(['receptionist', 'clinic_owner'])) {
+        if ($user->hasRole('doctor') && ! $user->hasAnyRole(['receptionist', 'clinic_owner'])) {
             $otherDoctorItems = LiveQueue::whereIn('id', $request->ordered_ids)
                 ->where('doctor_id', '!=', $user->id)
                 ->whereNotNull('doctor_id')
@@ -125,7 +125,7 @@ class LiveQueueController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Queue reordered successfully',
         ], 200);
     }
@@ -150,11 +150,11 @@ class LiveQueueController extends Controller
         } elseif ($user->hasRole('clinic_owner')) {
             // Clinic owner may specify doctor_id or default to authenticated user
             $doctorId = $validated['doctor_id'] ?? $user->id;
-            if (!empty($validated['doctor_id'])) {
-                $doctorUser = \App\Models\User::where('id', $validated['doctor_id'])
+            if (! empty($validated['doctor_id'])) {
+                $doctorUser = User::where('id', $validated['doctor_id'])
                     ->first();
 
-                if (!$doctorUser || !$doctorUser->branches()->where('branches.id', $validated['branch_id'])->exists()) {
+                if (! $doctorUser || ! $doctorUser->branches()->where('branches.id', $validated['branch_id'])->exists()) {
                     abort(422, 'الطبيب المحدد لا ينتمي إلى هذا الفرع أو المركز الطبي.');
                 }
             }
@@ -168,54 +168,54 @@ class LiveQueueController extends Controller
             $nextPatient = $this->liveQueueService->callNextPatient($validated['branch_id'], $doctorId, $roomName);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => $e->getMessage(),
             ], $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 409);
         }
 
-        if (!$nextPatient) {
+        if (! $nextPatient) {
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'No waiting patients in queue',
-                'data'    => null,
+                'data' => null,
             ], 200);
         }
 
         return response()->json([
             'status' => 'success',
-            'data'   => new LiveQueueResource($nextPatient),
+            'data' => new LiveQueueResource($nextPatient),
         ], 200);
     }
 
     /**
      * Direct Walk-In check-in (creates Appointment SSOT + LiveQueue record).
      */
-    public function checkInWalkIn(Request $request, AppointmentService $appointmentService): JsonResponse
+    public function checkInWalkIn(Request $request): JsonResponse
     {
         $request->validate([
-            'branch_id'      => 'required|exists:branches,id',
-            'patient_id'     => 'nullable|exists:patients,id',
-            'patient'        => 'required_without:patient_id|array',
-            'patient.name'           => 'required_without:patient_id|string|max:255',
-            'patient.phone'          => 'required_without:patient_id|string|max:255',
-            'patient.age'            => 'nullable|integer|min:0|max:150',
-            'patient.gender'         => 'nullable|in:male,female',
+            'branch_id' => 'required|exists:branches,id',
+            'patient_id' => 'nullable|exists:patients,id',
+            'patient' => 'required_without:patient_id|array',
+            'patient.name' => 'required_without:patient_id|string|max:255',
+            'patient.phone' => 'required_without:patient_id|string|max:255',
+            'patient.age' => 'nullable|integer|min:0|max:150',
+            'patient.gender' => 'nullable|in:male,female',
             'patient.medical_number' => 'nullable|string|max:100',
-            'type'                   => 'nullable|string|in:check_up,consultation',
-            'doctor_id'              => 'nullable|exists:users,id',
+            'type' => 'nullable|string|in:check_up,consultation',
+            'doctor_id' => 'nullable|exists:users,id',
         ]);
 
         $this->authorizeBranchAccess($request->user(), $request->branch_id);
 
-        $queueRecord = $appointmentService->checkInWalkIn(
+        $queueRecord = $this->liveQueueService->checkInWalkIn(
             $request->only(['patient_id', 'patient', 'type', 'doctor_id']),
             $request->branch_id
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تسجيل المريض المباشر ودخوله صالة الانتظار بنجاح',
-            'data'    => new LiveQueueResource($queueRecord->load('patient'))
+            'data' => new LiveQueueResource($queueRecord->load('patient')),
         ], 201);
     }
 
@@ -230,9 +230,9 @@ class LiveQueueController extends Controller
         $cancelled = $this->liveQueueService->cancelQueueItem($id);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم إلغاء دور المريض في صالة الانتظار بنجاح',
-            'data'    => new LiveQueueResource($cancelled),
+            'data' => new LiveQueueResource($cancelled),
         ], 200);
     }
 }

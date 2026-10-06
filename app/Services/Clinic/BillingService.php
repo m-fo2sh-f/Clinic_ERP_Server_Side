@@ -90,6 +90,49 @@ class BillingService
                 return $existing->load(['items', 'patient', 'encounter']);
             }
 
+            // Check if there is an existing invoice for this appointment
+            if ($encounter->appointment_id) {
+                $existing = Invoice::where('appointment_id', $encounter->appointment_id)->first();
+                if ($existing) {
+                    $existing->update(['encounter_id' => $encounter->id]);
+
+                    return $existing->load(['items', 'patient', 'encounter']);
+                }
+            }
+
+            // Check if there is an existing unpaid draft invoice created for this walk-in patient at reception
+            $existing = Invoice::where('patient_id', $encounter->patient_id)
+                ->where('branch_id', $encounter->branch_id)
+                ->whereNull('encounter_id')
+                ->whereNull('appointment_id')
+                ->where('payment_status', '!=', PaymentStatus::PAID->value)
+                ->latest()
+                ->first();
+
+            if ($existing) {
+                $existing->update([
+                    'encounter_id' => $encounter->id,
+                    'appointment_id' => $encounter->appointment_id,
+                ]);
+
+                if (! empty($serviceItems)) {
+                    foreach ($serviceItems as $itemData) {
+                        $serviceId = is_array($itemData) ? ($itemData['service_id'] ?? $itemData['id'] ?? null) : $itemData;
+                        $quantity = is_array($itemData) ? max(1, (int) ($itemData['quantity'] ?? 1)) : 1;
+                        if (! $serviceId) {
+                            continue;
+                        }
+                        $this->addExtraService($existing->id, $serviceId, $quantity);
+                    }
+                }
+                if ($discount > 0) {
+                    $existing->update(['discount' => max(0.0, $discount)]);
+                    $existing->recalculateTotals();
+                }
+
+                return $existing->fresh(['items', 'patient', 'encounter']);
+            }
+
             $invoiceNumber = $this->generateInvoiceNumber();
 
             $invoice = Invoice::create([
@@ -320,35 +363,33 @@ class BillingService
                 'paid_at' => now(),
             ]);
 
-            // Transition live queue status to completed (via encounter_id or appointment_id)
-            LiveQueue::where(function ($q) use ($invoice) {
-                if ($invoice->encounter_id) {
-                    $q->where('encounter_id', $invoice->encounter_id);
-                }
-                if ($invoice->appointment_id) {
-                    $q->orWhere('appointment_id', $invoice->appointment_id);
-                }
-            })->update([
-                'status' => LiveQueueStatus::COMPLETED->value,
-            ]);
+            // Transition live queue status to completed ONLY if patient has finished examination (status was pending_payment)
+            // If the patient is still checked_in, waiting, or under_examination, paying their invoice upfront must NOT remove them from the queue!
+            $queueQuery = LiveQueue::where('branch_id', $invoice->branch_id)
+                ->where('status', LiveQueueStatus::PENDING_PAYMENT->value);
 
-            // Transition appointment status if present
-            $appointmentId = $invoice->appointment_id ?? ($invoice->encounter?->appointment_id);
-            if ($appointmentId) {
-                Appointment::where('id', $appointmentId)->update([
-                    'status' => AppointmentStatus::COMPLETED->value,
+            if ($invoice->encounter_id) {
+                $queueQuery->where('encounter_id', $invoice->encounter_id)->update([
+                    'status' => LiveQueueStatus::COMPLETED->value,
+                ]);
+            } elseif ($invoice->appointment_id) {
+                $queueQuery->where('appointment_id', $invoice->appointment_id)->update([
+                    'status' => LiveQueueStatus::COMPLETED->value,
+                ]);
+            } elseif ($invoice->patient_id) {
+                $queueQuery->where('patient_id', $invoice->patient_id)->update([
+                    'status' => LiveQueueStatus::COMPLETED->value,
                 ]);
             }
 
-            // Transition encounter status to completed if not already completed
-            if ($invoice->encounter_id) {
-                $enc = Encounter::where('id', $invoice->encounter_id)->first();
-                if ($enc && $enc->status !== EncounterStatus::COMPLETED) {
-                    $enc->update([
-                        'status' => EncounterStatus::COMPLETED->value,
-                        'completed_at' => now(),
+            // Transition appointment status if present ONLY if it was awaiting payment
+            $appointmentId = $invoice->appointment_id ?? ($invoice->encounter?->appointment_id);
+            if ($appointmentId) {
+                Appointment::where('id', $appointmentId)
+                    ->whereIn('status', [AppointmentStatus::PENDING_PAYMENT->value, 'pending_payment'])
+                    ->update([
+                        'status' => AppointmentStatus::COMPLETED->value,
                     ]);
-                }
             }
 
             // Broadcast InvoicePaid & LiveQueueUpdated events
@@ -410,16 +451,25 @@ class BillingService
                     ]);
                 })
                 // OR if linked to an encounter (e.g. walk-in), show if encounter is completed
-                ->orWhereHas('encounter', function ($q) {
-                    $q->whereIn('status', [
-                        EncounterStatus::COMPLETED->value,
-                        'completed',
-                    ]);
-                })
+                    ->orWhereHas('encounter', function ($q) {
+                        $q->whereIn('status', [
+                            EncounterStatus::COMPLETED->value,
+                            'completed',
+                        ]);
+                    })
                 // OR if invoice has neither (standalone invoice created for patient)
-                ->orWhere(function ($q) {
-                    $q->whereNull('appointment_id')->whereNull('encounter_id');
-                });
+                // strictly exclude patients who are currently in the active queue waiting for or with the doctor
+                    ->orWhere(function ($q) {
+                        $q->whereNull('appointment_id')
+                            ->whereNull('encounter_id')
+                            ->whereDoesntHave('patient.liveQueues', function ($lq) {
+                                $lq->whereIn('status', [
+                                    LiveQueueStatus::CHECKED_IN->value,
+                                    LiveQueueStatus::WAITING->value,
+                                    LiveQueueStatus::UNDER_EXAMINATION->value,
+                                ]);
+                            });
+                    });
             })
             ->with(['patient', 'appointment.doctor', 'encounter.doctor', 'items'])
             ->orderByDesc('created_at')
@@ -459,11 +509,11 @@ class BillingService
         $invoiceNumber = $this->generateInvoiceNumber();
         $invoice = Invoice::create([
             'invoice_number' => $invoiceNumber,
-            'patient_id'     => $queueItem->patient_id,
-            'branch_id'      => $queueItem->branch_id,
-            'subtotal'       => 0.00,
-            'discount'       => 0.00,
-            'total'          => 0.00,
+            'patient_id' => $queueItem->patient_id,
+            'branch_id' => $queueItem->branch_id,
+            'subtotal' => 0.00,
+            'discount' => 0.00,
+            'total' => 0.00,
             'payment_status' => PaymentStatus::UNPAID->value,
         ]);
 
@@ -484,10 +534,10 @@ class BillingService
         InvoiceItem::create([
             'invoice_id' => $invoice->id,
             'service_id' => $consultationService?->id,
-            'item_name'  => $consultationService?->name ?? 'كشف استشاري',
+            'item_name' => $consultationService?->name ?? 'كشف استشاري',
             'unit_price' => $unitPrice,
-            'quantity'   => 1,
-            'total'      => $unitPrice,
+            'quantity' => 1,
+            'total' => $unitPrice,
         ]);
 
         return $invoice->recalculateTotals()->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor']);

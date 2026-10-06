@@ -209,12 +209,4 @@ class AppointmentService
             ], $appointment->branch_id);
         });
     }
-
-    /**
-     * Check-in a Walk-In patient directly into the live queue (No Appointment & No Invoice).
-     */
-    public function checkInWalkIn(array $data, string $branchId): LiveQueue
-    {
-        return $this->liveQueueService->checkInWalkIn($data, $branchId);
-    }
 }
