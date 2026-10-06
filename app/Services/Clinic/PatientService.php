@@ -42,6 +42,10 @@ class PatientService
             'appointments as completed_appointments_count' => function ($q) {
                 $q->where('status', 'completed');
             },
+            // Total completed clinical encounters (including walk-ins)
+            'encounters as completed_encounters_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
         ])
             ->orderByDesc('created_at')
             ->get(['id', 'medical_number', 'name', 'phone', 'age', 'gender', 'medical_history', 'created_at']);
@@ -126,7 +130,7 @@ class PatientService
     }
 
     /**
-     * Get complete details and appointment history for a patient.
+     * Get complete details, clinical encounters, and appointment history for a patient.
      */
     public function show(string $id, ?string $branchId = null): Patient
     {
@@ -143,10 +147,16 @@ class PatientService
             'appointments as completed_appointments_count' => function ($q) {
                 $q->where('status', 'completed');
             },
+            'encounters as completed_encounters_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
         ])
             ->with([
                 'appointments' => function ($query) {
-                    $query->orderBy('appointment_time', 'desc')->with('branch');
+                    $query->orderBy('appointment_time', 'desc')->with(['branch', 'doctor']);
+                },
+                'encounters' => function ($query) {
+                    $query->orderBy('started_at', 'desc')->with(['branch', 'doctor', 'invoice.payments', 'prescription.items']);
                 },
             ])
             ->findOrFail($id);
@@ -170,6 +180,9 @@ class PatientService
             'appointments as completed_appointments_count' => function ($q) {
                 $q->where('status', 'completed');
             },
+            'encounters as completed_encounters_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
         ])
             ->with([
                 'appointments' => function ($query) {
@@ -177,7 +190,7 @@ class PatientService
                         ->with(['branch', 'doctor', 'encounter', 'prescription']);
                 },
                 'encounters' => function ($query) {
-                    $query->orderBy('started_at', 'desc')->with(['prescription.items', 'doctor', 'invoice']);
+                    $query->orderBy('started_at', 'desc')->with(['prescription.items', 'doctor', 'branch', 'invoice.payments']);
                 },
             ])
             ->findOrFail($id);

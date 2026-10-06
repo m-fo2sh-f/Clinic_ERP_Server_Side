@@ -2,9 +2,10 @@
 
 namespace App\Http\Resources\Api\V1\Patient;
 
+use App\Http\Resources\Api\V1\Appointment\AppointmentResource;
+use App\Http\Resources\Api\V1\Encounter\EncounterResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\Api\V1\Appointment\AppointmentResource;
 
 class PatientHistoryResource extends JsonResource
 {
@@ -24,24 +25,26 @@ class PatientHistoryResource extends JsonResource
                 : $totalCompleted);
 
         return [
-            'id'                           => $this->id,
-            'medical_number'               => $this->medical_number,
-            'name'                         => $this->name,
-            'phone'                        => $this->phone,
-            'date_of_birth'                => $this->date_of_birth?->toDateString(),
-            'age'                          => $this->age,
-            'gender'                       => $this->gender,
-            'blood_group'                  => $this->blood_group,
-            'chronic_diseases'             => $this->chronic_diseases,
-            'allergies'                    => $this->allergies,
-            'surgeries'                    => $this->surgeries,
-            'medical_history'              => $this->medical_history,
-            'total_completed_count'        => $totalCompleted,
-            'branch_completed_count'       => $branchCompleted,
+            'id' => $this->id,
+            'medical_number' => $this->medical_number,
+            'name' => $this->name,
+            'phone' => $this->phone,
+            'date_of_birth' => $this->date_of_birth?->toDateString(),
+            'age' => $this->age,
+            'gender' => $this->gender,
+            'blood_group' => $this->blood_group,
+            'chronic_diseases' => $this->chronic_diseases,
+            'allergies' => $this->allergies,
+            'surgeries' => $this->surgeries,
+            'medical_history' => $this->medical_history,
+            'total_completed_count' => $totalCompleted,
+            'branch_completed_count' => $branchCompleted,
             'completed_appointments_count' => $totalCompleted,
-            'appointments'                 => AppointmentResource::collection($this->whenLoaded('appointments')),
-            'consultations'                => AppointmentResource::collection($this->whenLoaded('appointments')),
-            'created_at'                   => $this->created_at?->toIso8601String(),
+            'completed_encounters_count' => (int) ($this->completed_encounters_count ?? 0),
+            'encounters' => EncounterResource::collection($this->whenLoaded('encounters')),
+            'appointments' => AppointmentResource::collection($this->whenLoaded('appointments')),
+            'consultations' => EncounterResource::collection($this->whenLoaded('encounters')),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }
