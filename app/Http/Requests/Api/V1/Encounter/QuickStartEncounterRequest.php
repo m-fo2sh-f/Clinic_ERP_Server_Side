@@ -14,21 +14,24 @@ class QuickStartEncounterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'branch_id'            => 'required|exists:branches,id',
-            'patient_id'           => 'nullable|exists:patients,id',
-            'appointment_id'       => 'nullable|exists:appointments,id',
-            'name'                 => 'required_without:patient_id|nullable|string|max:255',
-            'phone'                => 'required_without:patient_id|nullable|string|max:50',
-            'age'                  => 'nullable|integer|min:0|max:150',
-            'gender'               => 'nullable|in:male,female',
-            'date_of_birth'        => 'nullable|date',
-            'type'                 => 'nullable|string|in:walk_in,check_up,follow_up,emergency',
-            'chief_complaint'      => 'nullable|string|max:2000',
+            'branch_id' => 'required|exists:branches,id',
+            'patient_id' => 'nullable|exists:patients,id',
+            'appointment_id' => 'nullable|exists:appointments,id',
+            'name' => 'required_without:patient_id|nullable|string|max:255',
+            'phone' => 'required_without:patient_id|nullable|string|max:50',
+            'age' => 'nullable|integer|min:0|max:150',
+            'gender' => 'nullable|in:male,female',
+            'date_of_birth' => 'nullable|date',
+            'type' => 'nullable|string|in:walk_in,check_up,follow_up,emergency',
+            'blood_group' => 'nullable|string|max:10',
+            'allergies' => 'nullable|string|max:1000',
+            'chronic_diseases' => 'nullable|string|max:1000',
+            'chief_complaint' => 'nullable|string|max:2000',
             'clinical_examination' => 'nullable|string|max:2000',
-            'diagnosis'            => 'nullable',
-            'vitals'               => 'nullable|array',
-            'private_notes'        => 'nullable|string|max:2000',
-            'resume_existing'      => 'nullable|boolean',
+            'diagnosis' => 'nullable',
+            'vitals' => 'nullable|array',
+            'private_notes' => 'nullable|string|max:2000',
+            'resume_existing' => 'nullable|boolean',
         ];
     }
 }
