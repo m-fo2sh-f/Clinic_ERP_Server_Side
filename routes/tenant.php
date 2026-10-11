@@ -55,7 +55,6 @@ Route::middleware([
                     Route::get('active', [EncounterController::class, 'active']);
                     Route::post('quick-start', [EncounterController::class, 'quickStart']);
                     Route::post('walk-in', [EncounterController::class, 'quickStart']);
-                    Route::match(['put', 'patch'], '{id}/draft', [EncounterController::class, 'saveDraft']);
                     Route::post('{id}/abandon', [EncounterController::class, 'abandon']);
                     Route::post('{id}/complete', [EncounterController::class, 'complete']);
                     Route::get('today-summary', [EncounterController::class, 'todaySummary']);

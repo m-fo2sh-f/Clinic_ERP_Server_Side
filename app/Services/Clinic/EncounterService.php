@@ -105,46 +105,6 @@ class EncounterService
     }
 
     /**
-     * Fast atomic save draft without row locks (deadlock prevention for 15s auto-save).
-     */
-    public function saveDraft(string $encounterId, array $data, int $doctorId): Encounter
-    {
-        $encounter = Encounter::where('id', $encounterId)->firstOrFail();
-
-        // Guard against updating completed or cancelled encounters
-        $statusValue = $encounter->status instanceof EncounterStatus
-            ? $encounter->status->value
-            : (string) $encounter->status;
-
-        if (in_array($statusValue, [EncounterStatus::COMPLETED->value, EncounterStatus::CANCELLED->value])) {
-            throw new \InvalidArgumentException('لا يمكن حفظ مسودة لجلسة فحص مكتملة أو ملغاة.', 409);
-        }
-
-        $updates = [];
-        if (array_key_exists('chief_complaint', $data)) {
-            $updates['chief_complaint'] = $data['chief_complaint'];
-        }
-        if (array_key_exists('clinical_examination', $data)) {
-            $updates['clinical_examination'] = $data['clinical_examination'];
-        }
-        if (array_key_exists('diagnosis', $data)) {
-            $updates['diagnosis'] = $this->normalizeDiagnosis($data['diagnosis']);
-        }
-        if (array_key_exists('vitals', $data)) {
-            $updates['vitals'] = $this->sanitizeVitals($data['vitals'], $encounter->branch_id);
-        }
-        if (array_key_exists('private_notes', $data)) {
-            $updates['private_notes'] = $data['private_notes'];
-        }
-
-        if (! empty($updates)) {
-            $encounter->update($updates);
-        }
-
-        return $encounter->fresh(['patient', 'branch', 'doctor', 'prescription.items', 'invoice.items']);
-    }
-
-    /**
      * Complete encounter atomically with lockForUpdate().
      * Wraps clinical wrap-up, medication line-items, and BillingService checkout.
      *

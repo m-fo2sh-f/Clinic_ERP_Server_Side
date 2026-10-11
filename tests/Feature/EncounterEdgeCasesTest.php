@@ -2,46 +2,51 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Tenant;
-use App\Models\User;
-use App\Models\Branch;
-use App\Models\Patient;
-use App\Models\ClinicSetting;
-use App\Models\Service;
-use App\Models\BranchService;
-use App\Models\Encounter;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\Payment;
+use App\Enums\ClinicMode;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterType;
-use App\Enums\ClinicMode;
 use App\Enums\PaymentStatus;
+use App\Models\Branch;
+use App\Models\BranchService;
+use App\Models\ClinicSetting;
+use App\Models\Encounter;
+use App\Models\Invoice;
+use App\Models\Patient;
+use App\Models\Payment;
+use App\Models\Service;
+use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+use Tests\TestCase;
 
 class EncounterEdgeCasesTest extends TestCase
 {
     use RefreshDatabase;
 
     protected Tenant $tenant;
+
     protected Branch $branch1;
+
     protected Branch $branch2;
+
     protected User $doctorBranch1;
+
     protected User $doctorBranch2;
+
     protected Service $consultationService;
+
     protected Service $procedureService;
+
     protected string $domain;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $tenantId = 'edge-' . Str::random(6);
-        $this->domain = $tenantId . '.test';
+        $tenantId = 'edge-'.Str::random(6);
+        $this->domain = $tenantId.'.test';
 
         $this->tenant = Tenant::create(['id' => $tenantId]);
         $this->tenant->domains()->create(['domain' => $this->domain]);
@@ -55,25 +60,25 @@ class EncounterEdgeCasesTest extends TestCase
         Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'web']);
 
         $this->branch1 = Branch::create([
-            'name'      => 'East Wing - الجناح الشرقي',
-            'address'   => 'مصر الجديدة',
-            'phone'     => '01011111111',
+            'name' => 'East Wing - الجناح الشرقي',
+            'address' => 'مصر الجديدة',
+            'phone' => '01011111111',
             'is_active' => true,
         ]);
 
         $this->branch2 = Branch::create([
-            'name'      => 'West Wing - الجناح الغربي',
-            'address'   => 'مصر الجديدة',
-            'phone'     => '01022222222',
+            'name' => 'West Wing - الجناح الغربي',
+            'address' => 'مصر الجديدة',
+            'phone' => '01022222222',
             'is_active' => true,
         ]);
 
         ClinicSetting::create([
-            'branch_id'                => $this->branch1->id,
-            'clinic_mode'              => ClinicMode::POLYCLINIC->value,
-            'queue_strategy'           => 'hybrid',
+            'branch_id' => $this->branch1->id,
+            'clinic_mode' => ClinicMode::POLYCLINIC->value,
+            'queue_strategy' => 'hybrid',
             'avg_appointment_duration' => 15,
-            'vitals_config'            => [
+            'vitals_config' => [
                 ['key' => 'bp_systolic', 'label' => 'Blood Pressure (Systolic)', 'is_active' => true],
                 ['key' => 'heart_rate', 'label' => 'Heart Rate', 'is_active' => true],
                 ['key' => 'blood_sugar', 'label' => 'Blood Sugar', 'is_active' => false],
@@ -81,16 +86,16 @@ class EncounterEdgeCasesTest extends TestCase
         ]);
 
         ClinicSetting::create([
-            'branch_id'                => $this->branch2->id,
-            'clinic_mode'              => ClinicMode::POLYCLINIC->value,
-            'queue_strategy'           => 'hybrid',
+            'branch_id' => $this->branch2->id,
+            'clinic_mode' => ClinicMode::POLYCLINIC->value,
+            'queue_strategy' => 'hybrid',
             'avg_appointment_duration' => 15,
         ]);
 
         // Doctor 1 strictly in Branch 1
         $this->doctorBranch1 = User::create([
-            'name'     => 'د. طارق خليل',
-            'email'    => 'dr.tarek@clinicb.test',
+            'name' => 'د. طارق خليل',
+            'email' => 'dr.tarek@clinicb.test',
             'password' => bcrypt('12345678'),
         ]);
         $this->doctorBranch1->assignRole('doctor');
@@ -98,85 +103,85 @@ class EncounterEdgeCasesTest extends TestCase
 
         // Doctor 2 strictly in Branch 2
         $this->doctorBranch2 = User::create([
-            'name'     => 'د. خالد عبد الرحمن',
-            'email'    => 'dr.khaled@clinicb.test',
+            'name' => 'د. خالد عبد الرحمن',
+            'email' => 'dr.khaled@clinicb.test',
             'password' => bcrypt('12345678'),
         ]);
         $this->doctorBranch2->assignRole('doctor');
         $this->doctorBranch2->branches()->attach($this->branch2->id);
 
         $this->consultationService = Service::create([
-            'name'          => 'كشف استشاري',
-            'code'          => 'GEN-01',
+            'name' => 'كشف استشاري',
+            'code' => 'GEN-01',
             'default_price' => 200.00,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         $this->procedureService = Service::create([
-            'name'          => 'فحص سونار دقيق',
-            'code'          => 'PROC-01',
+            'name' => 'فحص سونار دقيق',
+            'code' => 'PROC-01',
             'default_price' => 500.00,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         BranchService::create([
-            'branch_id'    => $this->branch1->id,
-            'service_id'   => $this->consultationService->id,
-            'price'        => 200.00,
+            'branch_id' => $this->branch1->id,
+            'service_id' => $this->consultationService->id,
+            'price' => 200.00,
             'is_available' => true,
         ]);
 
         BranchService::create([
-            'branch_id'    => $this->branch1->id,
-            'service_id'   => $this->procedureService->id,
-            'price'        => 500.00,
+            'branch_id' => $this->branch1->id,
+            'service_id' => $this->procedureService->id,
+            'price' => 500.00,
             'is_available' => true,
         ]);
     }
 
     /**
-     * 1. Auto-Save Race Condition on Finish:
-     * An auto-save draft request reaches the server after the encounter has already been marked completed.
-     * Assert draft endpoint rejects with HTTP 409 Conflict and does NOT overwrite completed medical data.
+     * 1. Duplicate Complete Rejection:
+     * A completion request reaches the server after the encounter has already been marked completed.
+     * Assert completion endpoint rejects with HTTP 409 Conflict and does NOT overwrite completed medical data.
      */
-    public function test_auto_save_race_condition_rejected_after_completion(): void
+    public function test_duplicate_completion_rejected_after_encounter_completed(): void
     {
         $patient = Patient::create([
-            'name'  => 'سامي جرجس',
+            'name' => 'سامي جرجس',
             'phone' => '01000000001',
         ]);
 
         $encounter = Encounter::create([
-            'branch_id'            => $this->branch1->id,
-            'doctor_id'            => $this->doctorBranch1->id,
-            'patient_id'           => $patient->id,
-            'type'                 => EncounterType::WALK_IN->value,
-            'status'               => EncounterStatus::IN_PROGRESS->value,
-            'chief_complaint'      => 'Original Valid Complaint',
+            'branch_id' => $this->branch1->id,
+            'doctor_id' => $this->doctorBranch1->id,
+            'patient_id' => $patient->id,
+            'type' => EncounterType::WALK_IN->value,
+            'status' => EncounterStatus::IN_PROGRESS->value,
+            'chief_complaint' => 'Original Valid Complaint',
             'clinical_examination' => 'Original Valid Examination',
-            'diagnosis'            => [['code' => null, 'description' => 'Original Confirmed Diagnosis']],
-            'started_at'           => now(),
+            'diagnosis' => [['code' => null, 'description' => 'Original Confirmed Diagnosis']],
+            'started_at' => now(),
         ]);
 
         // Complete encounter
         $completeRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/{$encounter->id}/complete", [
                 'chief_complaint' => 'Final Doctor Verified Complaint',
-                'diagnosis'       => ['Final Doctor Verified Diagnosis'],
+                'diagnosis' => ['Final Doctor Verified Diagnosis'],
             ]);
 
         $completeRes->assertStatus(200);
         $encounter->refresh();
         $this->assertEquals(EncounterStatus::COMPLETED->value, $encounter->status->value);
 
-        // In-flight auto-save arrives late
-        $lateDraftRes = $this->actingAs($this->doctorBranch1, 'sanctum')
-            ->putJson("http://{$this->domain}/api/v1/encounters/{$encounter->id}/draft", [
+        // Duplicate complete attempt arrives late
+        $lateCompleteRes = $this->actingAs($this->doctorBranch1, 'sanctum')
+            ->postJson("http://{$this->domain}/api/v1/encounters/{$encounter->id}/complete", [
                 'chief_complaint' => 'MALICIOUS_OVERWRITE_RACE_CONDITION',
-                'diagnosis'       => ['OVERWRITTEN_DIAGNOSIS'],
+                'diagnosis' => ['OVERWRITTEN_DIAGNOSIS'],
             ]);
 
-        $lateDraftRes->assertStatus(409)
+        $lateCompleteRes->assertStatus(409)
             ->assertJsonPath('status', 'error');
 
         // Verify database remains pristine with completed doctor data
@@ -193,14 +198,14 @@ class EncounterEdgeCasesTest extends TestCase
     public function test_double_active_encounters_prevention_on_same_day(): void
     {
         $patient = Patient::create([
-            'name'  => 'مروة عبد العزيز',
+            'name' => 'مروة عبد العزيز',
             'phone' => '01000000002',
         ]);
 
         // First encounter
         $firstRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/quick-start", [
-                'branch_id'  => $this->branch1->id,
+                'branch_id' => $this->branch1->id,
                 'patient_id' => $patient->id,
             ]);
 
@@ -212,7 +217,7 @@ class EncounterEdgeCasesTest extends TestCase
         // Duplicate attempt on the same day without resume flag
         $duplicateRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/quick-start", [
-                'branch_id'  => $this->branch1->id,
+                'branch_id' => $this->branch1->id,
                 'patient_id' => $patient->id,
             ]);
 
@@ -222,8 +227,8 @@ class EncounterEdgeCasesTest extends TestCase
         // When resume_existing is true, safely returns the active draft instead of creating a second one
         $resumeRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/quick-start", [
-                'branch_id'       => $this->branch1->id,
-                'patient_id'      => $patient->id,
+                'branch_id' => $this->branch1->id,
+                'patient_id' => $patient->id,
                 'resume_existing' => true,
             ]);
 
@@ -242,14 +247,14 @@ class EncounterEdgeCasesTest extends TestCase
     public function test_cross_tenant_and_cross_branch_idor_attack_rejected(): void
     {
         $patientBranch2 = Patient::create([
-            'name'  => 'ياسر القاضي',
+            'name' => 'ياسر القاضي',
             'phone' => '01000000003',
         ]);
 
         // Attack 1: Doctor 1 (Branch 1 only) tries to start encounter in Branch 2
         $crossBranchStart = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/quick-start", [
-                'branch_id'  => $this->branch2->id,
+                'branch_id' => $this->branch2->id,
                 'patient_id' => $patientBranch2->id,
             ]);
 
@@ -257,11 +262,11 @@ class EncounterEdgeCasesTest extends TestCase
 
         // Doctor 2 legally starts an encounter in Branch 2
         $branch2Encounter = Encounter::create([
-            'branch_id'  => $this->branch2->id,
-            'doctor_id'  => $this->doctorBranch2->id,
+            'branch_id' => $this->branch2->id,
+            'doctor_id' => $this->doctorBranch2->id,
             'patient_id' => $patientBranch2->id,
-            'type'       => EncounterType::WALK_IN->value,
-            'status'     => EncounterStatus::IN_PROGRESS->value,
+            'type' => EncounterType::WALK_IN->value,
+            'status' => EncounterStatus::IN_PROGRESS->value,
             'started_at' => now(),
         ]);
 
@@ -271,13 +276,13 @@ class EncounterEdgeCasesTest extends TestCase
 
         $crossBranchShow->assertStatus(403);
 
-        // Attack 3: Doctor 1 tries to save draft on Branch 2's encounter
-        $crossBranchDraft = $this->actingAs($this->doctorBranch1, 'sanctum')
-            ->putJson("http://{$this->domain}/api/v1/encounters/{$branch2Encounter->id}/draft", [
-                'chief_complaint' => 'Unauthorized IDOR modification attempt',
+        // Attack 3: Doctor 1 tries to abandon Branch 2's encounter
+        $crossBranchAbandon = $this->actingAs($this->doctorBranch1, 'sanctum')
+            ->postJson("http://{$this->domain}/api/v1/encounters/{$branch2Encounter->id}/abandon", [
+                'reason' => 'Unauthorized IDOR modification attempt',
             ]);
 
-        $crossBranchDraft->assertStatus(403);
+        $crossBranchAbandon->assertStatus(403);
 
         // Attack 4: Cross-Tenant access with a foreign tenant encounter ID
         $foreignEncounterId = (string) Str::uuid();
@@ -296,16 +301,16 @@ class EncounterEdgeCasesTest extends TestCase
     public function test_price_fluctuation_immunity_preserves_historical_snapshots(): void
     {
         $patient = Patient::create([
-            'name'  => 'عمر فاروق',
+            'name' => 'عمر فاروق',
             'phone' => '01000000004',
         ]);
 
         $encounter = Encounter::create([
-            'branch_id'  => $this->branch1->id,
-            'doctor_id'  => $this->doctorBranch1->id,
+            'branch_id' => $this->branch1->id,
+            'doctor_id' => $this->doctorBranch1->id,
             'patient_id' => $patient->id,
-            'type'       => EncounterType::WALK_IN->value,
-            'status'     => EncounterStatus::IN_PROGRESS->value,
+            'type' => EncounterType::WALK_IN->value,
+            'status' => EncounterStatus::IN_PROGRESS->value,
             'started_at' => now(),
         ]);
 
@@ -313,10 +318,10 @@ class EncounterEdgeCasesTest extends TestCase
         $completeRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/{$encounter->id}/complete", [
                 'diagnosis' => ['General Checkup'],
-                'services'  => [
+                'services' => [
                     ['service_id' => $this->consultationService->id, 'quantity' => 1],
                 ],
-                'payments'  => [
+                'payments' => [
                     ['method' => 'cash', 'amount' => 200.00],
                 ],
             ]);
@@ -325,8 +330,8 @@ class EncounterEdgeCasesTest extends TestCase
 
         $invoice = Invoice::where('encounter_id', $encounter->id)->first();
         $this->assertNotNull($invoice);
-        $this->assertEquals(200.00, (float)$invoice->total);
-        $this->assertEquals(200.00, (float)$invoice->items->first()->unit_price);
+        $this->assertEquals(200.00, (float) $invoice->total);
+        $this->assertEquals(200.00, (float) $invoice->items->first()->unit_price);
 
         // Drastic price increase in catalog from 200 EGP to 500 EGP
         $this->consultationService->update(['default_price' => 500.00]);
@@ -336,15 +341,15 @@ class EncounterEdgeCasesTest extends TestCase
 
         // Reload previous invoice from DB and API
         $invoice->refresh();
-        $this->assertEquals(200.00, (float)$invoice->total);
-        $this->assertEquals(200.00, (float)$invoice->items->first()->unit_price);
+        $this->assertEquals(200.00, (float) $invoice->total);
+        $this->assertEquals(200.00, (float) $invoice->items->first()->unit_price);
 
         $showInvoiceRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->getJson("http://{$this->domain}/api/v1/invoices/{$invoice->id}");
 
         $showInvoiceRes->assertStatus(200);
-        $this->assertEquals(200.00, (float)$showInvoiceRes->json('data.total'));
-        $this->assertEquals(200.00, (float)$showInvoiceRes->json('data.items.0.unit_price'));
+        $this->assertEquals(200.00, (float) $showInvoiceRes->json('data.total'));
+        $this->assertEquals(200.00, (float) $showInvoiceRes->json('data.items.0.unit_price'));
     }
 
     /**
@@ -355,16 +360,16 @@ class EncounterEdgeCasesTest extends TestCase
     public function test_partial_and_split_payment_integrity(): void
     {
         $patient = Patient::create([
-            'name'  => 'كريم فهمي',
+            'name' => 'كريم فهمي',
             'phone' => '01000000005',
         ]);
 
         $encounter = Encounter::create([
-            'branch_id'  => $this->branch1->id,
-            'doctor_id'  => $this->doctorBranch1->id,
+            'branch_id' => $this->branch1->id,
+            'doctor_id' => $this->doctorBranch1->id,
             'patient_id' => $patient->id,
-            'type'       => EncounterType::WALK_IN->value,
-            'status'     => EncounterStatus::IN_PROGRESS->value,
+            'type' => EncounterType::WALK_IN->value,
+            'status' => EncounterStatus::IN_PROGRESS->value,
             'started_at' => now(),
         ]);
 
@@ -404,13 +409,13 @@ class EncounterEdgeCasesTest extends TestCase
 
         $invoice = Invoice::where('encounter_id', $encounter->id)->first();
         $this->assertNotNull($invoice);
-        $this->assertEquals(500.00, (float)$invoice->total);
+        $this->assertEquals(500.00, (float) $invoice->total);
         $this->assertEquals(PaymentStatus::PAID->value, $invoice->payment_status->value ?? $invoice->payment_status);
 
         $payments = Payment::where('invoice_id', $invoice->id)->get();
         $this->assertCount(2, $payments);
-        $this->assertEquals(300.00, (float)$payments->where('payment_method', 'cash')->first()->amount);
-        $this->assertEquals(200.00, (float)$payments->where('payment_method', 'visa')->first()->amount);
+        $this->assertEquals(300.00, (float) $payments->where('payment_method', 'cash')->first()->amount);
+        $this->assertEquals(200.00, (float) $payments->where('payment_method', 'visa')->first()->amount);
         $this->assertEquals('VISA-REF-9988', $payments->where('payment_method', 'visa')->first()->transaction_reference);
     }
 
@@ -422,7 +427,7 @@ class EncounterEdgeCasesTest extends TestCase
     public function test_missing_and_deactivated_vitals_handled_safely_without_db_exceptions(): void
     {
         $patient = Patient::create([
-            'name'  => 'نوران عادل',
+            'name' => 'نوران عادل',
             'phone' => '01000000006',
         ]);
 
@@ -431,18 +436,18 @@ class EncounterEdgeCasesTest extends TestCase
         // heart_rate (is_active: true)
         // blood_sugar (is_active: false)
         $vitalsPayload = [
-            'bp_systolic'               => 120,
-            'heart_rate'                => 78,
-            'blood_sugar'               => 115, // Deactivated!
-            'malicious_sql_injection'   => "'; DROP TABLE encounters; --",
+            'bp_systolic' => 120,
+            'heart_rate' => 78,
+            'blood_sugar' => 115, // Deactivated!
+            'malicious_sql_injection' => "'; DROP TABLE encounters; --",
             'unexpected_nested_payload' => ['deep_attack' => true],
         ];
 
         $startRes = $this->actingAs($this->doctorBranch1, 'sanctum')
             ->postJson("http://{$this->domain}/api/v1/encounters/quick-start", [
-                'branch_id'  => $this->branch1->id,
+                'branch_id' => $this->branch1->id,
                 'patient_id' => $patient->id,
-                'vitals'     => $vitalsPayload,
+                'vitals' => $vitalsPayload,
             ]);
 
         $startRes->assertStatus(201)
