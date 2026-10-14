@@ -2,57 +2,66 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use App\Enums\AppointmentStatus;
+use App\Enums\EncounterStatus;
+use App\Enums\EncounterType;
+use App\Enums\LiveQueueStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Events\InvoicePaid;
+use App\Events\InvoiceReadyForPayment;
+use App\Models\Appointment;
+use App\Models\Branch;
+use App\Models\BranchService;
+use App\Models\Encounter;
+use App\Models\LiveQueue;
+use App\Models\Patient;
+use App\Models\Payment;
+use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\Branch;
-use App\Models\Patient;
-use App\Models\Appointment;
-use App\Models\LiveQueue;
-use App\Models\Service;
-use App\Models\BranchService;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\Payment;
-use App\Enums\LiveQueueStatus;
-use App\Enums\AppointmentStatus;
-use App\Enums\PaymentStatus;
-use App\Enums\PaymentMethod;
-use App\Events\InvoiceReadyForPayment;
-use App\Events\InvoicePaid;
 use App\Services\Clinic\AppointmentService;
-use App\Services\Clinic\LiveQueueService;
-use App\Services\Clinic\ConsultationService;
 use App\Services\Clinic\BillingService;
+use App\Services\Clinic\EncounterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class FinancialModuleTest extends TestCase
 {
     use RefreshDatabase;
 
     protected Tenant $tenant;
+
     protected Branch $branch;
+
     protected User $doctor;
+
     protected User $receptionist;
+
     protected Patient $patient;
+
     protected Service $consultationService;
+
     protected Service $ecgService;
+
     protected string $doctorToken;
+
     protected string $receptionToken;
+
     protected string $domain;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $tenantId = 'clinic-fin-' . Str::random(6);
+        $tenantId = 'clinic-fin-'.Str::random(6);
 
         // 1. Setup Tenant and Domain
         $this->tenant = Tenant::create(['id' => $tenantId]);
-        $this->domain = $tenantId . '.test';
+        $this->domain = $tenantId.'.test';
         $this->tenant->domains()->create(['domain' => $this->domain]);
 
         tenancy()->initialize($this->tenant);
@@ -60,64 +69,59 @@ class FinancialModuleTest extends TestCase
 
         Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'sanctum']);
+        Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'clinic_owner', 'guard_name' => 'sanctum']);
         Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'sanctum']);
 
-        $this->branch = Branch::factory()->create(['tenant_id' => $this->tenant->id]);
+        $this->branch = Branch::factory()->create();
 
         $this->doctor = User::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'email'     => 'doctor@' . $this->domain,
+            'email' => 'doctor@'.$this->domain,
         ]);
-        $this->doctor->assignRole('doctor');
+        $this->doctor->assignRole(['doctor', 'clinic_owner']);
         $this->doctor->branches()->attach($this->branch->id);
 
         $this->receptionist = User::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'email'     => 'reception@' . $this->domain,
+            'email' => 'reception@'.$this->domain,
         ]);
         $this->receptionist->assignRole('receptionist');
         $this->receptionist->branches()->attach($this->branch->id);
 
         $this->patient = Patient::create([
-            'tenant_id'      => $this->tenant->id,
-            'name'           => 'أحمد محمود',
-            'phone'          => '01099887766',
+            'name' => 'أحمد محمود',
+            'phone' => '01099887766',
             'medical_number' => 'MRN-778899',
-            'age'            => 35,
-            'gender'         => 'male',
+            'age' => 35,
+            'gender' => 'male',
         ]);
 
         // Create standard services
         $this->consultationService = Service::create([
-            'tenant_id'     => $this->tenant->id,
-            'name'          => 'كشف استشاري',
-            'code'          => 'CONSULTATION',
+            'name' => 'كشف استشاري',
+            'code' => 'CONSULTATION',
             'default_price' => 150.00,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         BranchService::create([
-            'tenant_id'    => $this->tenant->id,
-            'branch_id'    => $this->branch->id,
-            'service_id'   => $this->consultationService->id,
-            'price'        => 150.00,
+            'branch_id' => $this->branch->id,
+            'service_id' => $this->consultationService->id,
+            'price' => 150.00,
             'is_available' => true,
         ]);
 
         $this->ecgService = Service::create([
-            'tenant_id'     => $this->tenant->id,
-            'name'          => 'رسم قلب (ECG)',
-            'code'          => 'ECG',
+            'name' => 'رسم قلب (ECG)',
+            'code' => 'ECG',
             'default_price' => 100.00,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         BranchService::create([
-            'tenant_id'    => $this->tenant->id,
-            'branch_id'    => $this->branch->id,
-            'service_id'   => $this->ecgService->id,
-            'price'        => 100.00,
+            'branch_id' => $this->branch->id,
+            'service_id' => $this->ecgService->id,
+            'price' => 100.00,
             'is_available' => true,
         ]);
 
@@ -128,19 +132,20 @@ class FinancialModuleTest extends TestCase
     public function test_checkin_automatically_creates_unpaid_invoice_with_consultation_fee_snapshot(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::BOOKING->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::BOOKING->value,
         ]);
 
         $appointmentService = app(AppointmentService::class);
         $appointmentService->checkInAppointment($appointment->id);
 
-        $invoice = Invoice::where('appointment_id', $appointment->id)->first();
+        $billingService = app(BillingService::class);
+        $invoice = $billingService->createInvoiceForAppointment($appointment);
+
         $this->assertNotNull($invoice);
         $this->assertEquals(PaymentStatus::UNPAID, $invoice->payment_status);
         $this->assertEquals('150.00', $invoice->total);
@@ -158,23 +163,22 @@ class FinancialModuleTest extends TestCase
     public function test_doctor_can_add_extra_services_to_invoice_with_price_snapshotting(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::CHECKED_IN->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::CHECKED_IN->value,
         ]);
 
         $billingService = app(BillingService::class);
         $invoice = $billingService->createInvoiceForAppointment($appointment);
 
         // Add ECG via API
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->doctorToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->doctorToken)
             ->postJson("http://{$this->domain}/api/v1/invoices/{$invoice->id}/items", [
                 'service_id' => $this->ecgService->id,
-                'quantity'   => 1,
+                'quantity' => 1,
             ]);
 
         $response->assertStatus(200);
@@ -193,13 +197,12 @@ class FinancialModuleTest extends TestCase
     public function test_catalog_price_changes_do_not_alter_existing_invoice_item_snapshots(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::CHECKED_IN->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::CHECKED_IN->value,
         ]);
 
         $billingService = app(BillingService::class);
@@ -223,42 +226,44 @@ class FinancialModuleTest extends TestCase
         Event::fake([InvoiceReadyForPayment::class]);
 
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::UNDER_EXAMINATION->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::UNDER_EXAMINATION->value,
         ]);
 
         $queue = LiveQueue::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'appointment_id'   => $appointment->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
-            'queue_no'         => 1,
-            'status'           => LiveQueueStatus::UNDER_EXAMINATION,
-            'shift_date'       => now()->toDateString(),
-            'checked_in_at'    => now(),
+            'branch_id' => $this->branch->id,
+            'appointment_id' => $appointment->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'queue_no' => 1,
+            'status' => LiveQueueStatus::UNDER_EXAMINATION,
+            'shift_date' => now()->toDateString(),
+            'checked_in_at' => now(),
         ]);
 
-        $billingService = app(BillingService::class);
-        $billingService->createInvoiceForAppointment($appointment);
-
-        $consultationService = app(ConsultationService::class);
-        $consultationService->completeConsultation([
-            'live_queue_id'        => $queue->id,
-            'appointment_id'       => $appointment->id,
-            'patient_id'           => $this->patient->id,
-            'branch_id'            => $this->branch->id,
-            'chief_complaint'      => 'حمى وصداع شديد',
-            'diagnoses'            => ['التهاب حاد'],
-            'examination_findings' => 'احتقان بالحلق',
-            'vitals'               => ['temperature' => '38.5'],
-            'medications'          => [],
+        $encounter = Encounter::create([
+            'patient_id' => $this->patient->id,
+            'branch_id' => $this->branch->id,
+            'doctor_id' => $this->doctor->id,
+            'appointment_id' => $appointment->id,
+            'type' => EncounterType::SCHEDULED,
+            'status' => EncounterStatus::IN_PROGRESS,
+            'started_at' => now(),
         ]);
+        $queue->update(['encounter_id' => $encounter->id]);
+
+        $encounterService = app(EncounterService::class);
+        $encounterService->completeEncounter($encounter->id, [
+            'chief_complaint' => 'حمى وصداع شديد',
+            'diagnosis' => ['التهاب حاد'],
+            'clinical_examination' => 'احتقان بالحلق',
+            'vitals' => ['temperature' => '38.5'],
+            'medications' => [],
+        ], $this->doctor->id);
 
         $appointment->refresh();
         $this->assertEquals(AppointmentStatus::PENDING_PAYMENT, $appointment->status);
@@ -273,13 +278,12 @@ class FinancialModuleTest extends TestCase
         Event::fake([InvoicePaid::class]);
 
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::PENDING_PAYMENT->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::PENDING_PAYMENT->value,
         ]);
 
         $billingService = app(BillingService::class);
@@ -288,7 +292,7 @@ class FinancialModuleTest extends TestCase
         // Total is 250.00
 
         // Process Split Payment: 100 Cash + 150 Visa
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->receptionToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->receptionToken)
             ->postJson("http://{$this->domain}/api/v1/invoices/{$invoice->id}/pay", [
                 'payments' => [
                     [
@@ -296,8 +300,8 @@ class FinancialModuleTest extends TestCase
                         'amount' => 100.00,
                     ],
                     [
-                        'method'                => 'visa',
-                        'amount'                => 150.00,
+                        'method' => 'visa',
+                        'amount' => 150.00,
                         'transaction_reference' => 'TXN-VISA-998811',
                     ],
                 ],
@@ -326,13 +330,12 @@ class FinancialModuleTest extends TestCase
     public function test_cannot_pay_mismatched_amount(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::PENDING_PAYMENT->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::PENDING_PAYMENT->value,
         ]);
 
         $billingService = app(BillingService::class);
@@ -340,7 +343,7 @@ class FinancialModuleTest extends TestCase
         // Total is 150.00
 
         // Pay only 100
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->receptionToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->receptionToken)
             ->postJson("http://{$this->domain}/api/v1/invoices/{$invoice->id}/pay", [
                 'payments' => [
                     [
@@ -350,8 +353,8 @@ class FinancialModuleTest extends TestCase
                 ],
             ]);
 
-        // Expect 500 with descriptive error message or 422
-        $response->assertStatus(500); // InvalidArgumentException caught by Laravel handler
+        // Expect 422 with descriptive error message
+        $response->assertStatus(422);
         $invoice->refresh();
         $this->assertEquals(PaymentStatus::UNPAID, $invoice->payment_status);
     }
@@ -359,13 +362,12 @@ class FinancialModuleTest extends TestCase
     public function test_double_payment_prevention_guards_against_double_spending(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::PENDING_PAYMENT->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::PENDING_PAYMENT->value,
         ]);
 
         $billingService = app(BillingService::class);
@@ -389,13 +391,12 @@ class FinancialModuleTest extends TestCase
     public function test_cannot_add_services_to_already_paid_invoice(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::PENDING_PAYMENT->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::PENDING_PAYMENT->value,
         ]);
 
         $billingService = app(BillingService::class);
@@ -412,19 +413,18 @@ class FinancialModuleTest extends TestCase
     public function test_reception_can_fetch_pending_invoices_for_drawer(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::PENDING_PAYMENT->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::PENDING_PAYMENT->value,
         ]);
 
         $billingService = app(BillingService::class);
         $invoice = $billingService->createInvoiceForAppointment($appointment);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->receptionToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->receptionToken)
             ->getJson("http://{$this->domain}/api/v1/invoices/pending?branch_id={$this->branch->id}");
 
         $response->assertStatus(200);
@@ -436,11 +436,11 @@ class FinancialModuleTest extends TestCase
     public function test_doctor_or_owner_can_create_and_update_service_pricing_from_settings(): void
     {
         // 1. Create new service
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->doctorToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->doctorToken)
             ->postJson("http://{$this->domain}/api/v1/billing/services", [
-                'name'      => 'جلسة علاج طبيعي',
-                'code'      => 'PHYSIO',
-                'price'     => 200.00,
+                'name' => 'جلسة علاج طبيعي',
+                'code' => 'PHYSIO',
+                'price' => 200.00,
                 'branch_id' => $this->branch->id,
             ]);
 
@@ -449,10 +449,10 @@ class FinancialModuleTest extends TestCase
         $this->assertNotNull($serviceId);
 
         // 2. Update service name and price
-        $updateResponse = $this->withHeader('Authorization', 'Bearer ' . $this->doctorToken)
+        $updateResponse = $this->withHeader('Authorization', 'Bearer '.$this->doctorToken)
             ->putJson("http://{$this->domain}/api/v1/billing/services/{$serviceId}", [
-                'name'      => 'جلسة علاج طبيعي متقدمة',
-                'price'     => 250.00,
+                'name' => 'جلسة علاج طبيعي متقدمة',
+                'price' => 250.00,
                 'branch_id' => $this->branch->id,
             ]);
 
@@ -470,16 +470,15 @@ class FinancialModuleTest extends TestCase
     public function test_can_get_or_create_invoice_for_appointment(): void
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::BOOKING->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::BOOKING->value,
         ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->receptionToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->receptionToken)
             ->getJson("http://{$this->domain}/api/v1/invoices/appointment/{$appointment->id}");
 
         $response->assertStatus(200);

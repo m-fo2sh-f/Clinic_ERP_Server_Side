@@ -19,6 +19,7 @@ Broadcast::channel('live-queue.{branchId}', function (User $user, string $branch
     if ($user->hasRole('clinic_owner')) {
         return true;
     }
+
     return $user->branches()->where('branches.id', $branchId)->exists();
 });
 
@@ -27,6 +28,7 @@ Broadcast::channel('branch.{branchId}', function (User $user, string $branchId) 
     if ($user->hasRole('clinic_owner')) {
         return true;
     }
+
     return $user->branches()->where('branches.id', $branchId)->exists();
 });
 

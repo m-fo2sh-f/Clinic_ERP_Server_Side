@@ -16,22 +16,22 @@ class ProcessPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payments'                          => ['required', 'array', 'min:1'],
-            'payments.*.method'                 => ['required', 'string', Rule::in(PaymentMethod::values())],
-            'payments.*.amount'                 => ['required', 'numeric', 'gt:0'],
-            'payments.*.transaction_reference'  => ['nullable', 'string', 'max:100'],
+            'payments' => ['required', 'array', 'min:1'],
+            'payments.*.method' => ['required', 'string', Rule::in(PaymentMethod::values())],
+            'payments.*.amount' => ['required', 'numeric', 'gt:0'],
+            'payments.*.transaction_reference' => ['nullable', 'string', 'max:100'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'payments.required'                 => 'يجب إدخال تفاصيل الدفع.',
-            'payments.min'                      => 'يجب إدخال دفعة واحدة على الأقل.',
-            'payments.*.method.required'        => 'طريقة الدفع مطلوبة.',
-            'payments.*.method.in'              => 'طريقة الدفع يجب أن تكون نقداً (cash) أو فيزا (visa).',
-            'payments.*.amount.required'        => 'المبلغ مطلوب.',
-            'payments.*.amount.gt'              => 'يجب أن يكون المبلغ أكبر من صفر.',
+            'payments.required' => 'يجب إدخال تفاصيل الدفع.',
+            'payments.min' => 'يجب إدخال دفعة واحدة على الأقل.',
+            'payments.*.method.required' => 'طريقة الدفع مطلوبة.',
+            'payments.*.method.in' => 'طريقة الدفع يجب أن تكون نقداً (cash) أو فيزا (visa).',
+            'payments.*.amount.required' => 'المبلغ مطلوب.',
+            'payments.*.amount.gt' => 'يجب أن يكون المبلغ أكبر من صفر.',
         ];
     }
 }

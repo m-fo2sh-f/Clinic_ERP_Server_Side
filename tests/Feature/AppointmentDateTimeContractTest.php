@@ -2,24 +2,25 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Branch;
-use App\Models\Patient;
-use App\Models\Appointment;
-use App\Models\Tenant;
-use App\Services\Clinic\AppointmentService;
 use App\Http\Requests\Api\V1\Appointment\StoreAppointmentRequest;
 use App\Http\Requests\Api\V1\Appointment\UpdateAppointmentRequest;
+use App\Models\Branch;
+use App\Models\Patient;
+use App\Models\Tenant;
+use App\Services\Clinic\AppointmentService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
+use Tests\TestCase;
 
 class AppointmentDateTimeContractTest extends TestCase
 {
     use RefreshDatabase;
 
     protected AppointmentService $appointmentService;
+
     protected Branch $branch;
+
     protected ?Tenant $tenant = null;
 
     protected function setUp(): void
@@ -27,12 +28,12 @@ class AppointmentDateTimeContractTest extends TestCase
         parent::setUp();
 
         if (class_exists(Tenant::class)) {
-            $this->tenant = Tenant::create(['id' => 'tenant-' . Str::random(8)]);
+            $this->tenant = Tenant::create(['id' => 'tenant-'.Str::random(8)]);
             tenancy()->initialize($this->tenant);
         }
 
         $this->appointmentService = app(AppointmentService::class);
-        $this->branch             = Branch::factory()->create();
+        $this->branch = Branch::factory()->create();
     }
 
     // =========================================================================
@@ -48,11 +49,11 @@ class AppointmentDateTimeContractTest extends TestCase
         // Create a mock request with the input data
         $request = StoreAppointmentRequest::create('/api/v1/appointments', 'POST', [
             'appointment_time' => $inputDateTime,
-            'branch_id'        => $this->branch->id,
-            'type'             => 'check_up',
-            'status'           => 'booking',
-            'patient'          => [
-                'name'  => 'Test Patient',
+            'branch_id' => $this->branch->id,
+            'type' => 'check_up',
+            'status' => 'booking',
+            'patient' => [
+                'name' => 'Test Patient',
                 'phone' => '01000000000',
             ],
         ]);
@@ -96,7 +97,7 @@ class AppointmentDateTimeContractTest extends TestCase
     }
 
     /** @test */
-    public function test_normalizes_iso8601_with_T_separator_and_seconds(): void
+    public function test_normalizes_iso8601_with_t_separator_and_seconds(): void
     {
         $result = $this->normalizeViaFormRequest('2026-09-15T14:30:00');
 
@@ -120,16 +121,16 @@ class AppointmentDateTimeContractTest extends TestCase
     public function test_service_creates_appointment_with_sql_datetime_string(): void
     {
         $patient = Patient::factory()->create([
-            'name'  => 'تست مريض',
+            'name' => 'تست مريض',
             'phone' => '01011111111',
         ]);
 
         $appointment = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $patient->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $patient->id,
             'appointment_time' => '2026-09-15 14:30:00',
-            'type'             => 'check_up',
-            'status'           => 'booking',
+            'type' => 'check_up',
+            'status' => 'booking',
         ]);
 
         $this->assertNotNull($appointment->id);
@@ -141,7 +142,7 @@ class AppointmentDateTimeContractTest extends TestCase
     public function test_service_creates_appointment_with_carbon_parsed_iso_string(): void
     {
         $patient = Patient::factory()->create([
-            'name'  => 'تست ISO',
+            'name' => 'تست ISO',
             'phone' => '01022222222',
         ]);
 
@@ -149,11 +150,11 @@ class AppointmentDateTimeContractTest extends TestCase
         $normalizedTime = Carbon::parse('2026-09-15T14:30:00.000Z')->format('Y-m-d H:i:s');
 
         $appointment = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $patient->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $patient->id,
             'appointment_time' => $normalizedTime,
-            'type'             => 'check_up',
-            'status'           => 'booking',
+            'type' => 'check_up',
+            'status' => 'booking',
         ]);
 
         $this->assertNotNull($appointment->id);
@@ -164,7 +165,7 @@ class AppointmentDateTimeContractTest extends TestCase
     public function test_service_creates_appointment_with_carbon_parsed_html5_datetime(): void
     {
         $patient = Patient::factory()->create([
-            'name'  => 'تست HTML5',
+            'name' => 'تست HTML5',
             'phone' => '01033333333',
         ]);
 
@@ -172,11 +173,11 @@ class AppointmentDateTimeContractTest extends TestCase
         $normalizedTime = Carbon::parse('2026-09-15T14:30')->format('Y-m-d H:i:s');
 
         $appointment = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $patient->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $patient->id,
             'appointment_time' => $normalizedTime,
-            'type'             => 'check_up',
-            'status'           => 'booking',
+            'type' => 'check_up',
+            'status' => 'booking',
         ]);
 
         $this->assertNotNull($appointment->id);
@@ -193,11 +194,11 @@ class AppointmentDateTimeContractTest extends TestCase
     {
         $request = StoreAppointmentRequest::create('/api/v1/appointments', 'POST', [
             'appointment_time' => 'invalid-date',
-            'branch_id'        => $this->branch->id,
-            'type'             => 'check_up',
-            'status'           => 'booking',
-            'patient'          => [
-                'name'  => 'Test Patient',
+            'branch_id' => $this->branch->id,
+            'type' => 'check_up',
+            'status' => 'booking',
+            'patient' => [
+                'name' => 'Test Patient',
                 'phone' => '01000000000',
             ],
         ]);
@@ -208,7 +209,7 @@ class AppointmentDateTimeContractTest extends TestCase
         $method->invoke($request);
 
         // Now validate using the rules
-        $rules = (new StoreAppointmentRequest())->rules();
+        $rules = (new StoreAppointmentRequest)->rules();
         $validator = validator($request->all(), $rules);
 
         $this->assertTrue($validator->fails());
@@ -220,11 +221,11 @@ class AppointmentDateTimeContractTest extends TestCase
     {
         $request = StoreAppointmentRequest::create('/api/v1/appointments', 'POST', [
             'appointment_time' => '2026-09-15T14:30:00.000Z',
-            'branch_id'        => $this->branch->id,
-            'type'             => 'check_up',
-            'status'           => 'booking',
-            'patient'          => [
-                'name'  => 'Test Patient',
+            'branch_id' => $this->branch->id,
+            'type' => 'check_up',
+            'status' => 'booking',
+            'patient' => [
+                'name' => 'Test Patient',
                 'phone' => '01000000000',
             ],
         ]);
@@ -235,12 +236,12 @@ class AppointmentDateTimeContractTest extends TestCase
         $method->invoke($request);
 
         // appointment_time should now be Y-m-d H:i:s
-        $rules = (new StoreAppointmentRequest())->rules();
+        $rules = (new StoreAppointmentRequest)->rules();
         $validator = validator($request->all(), $rules);
 
         $this->assertFalse(
             $validator->errors()->has('appointment_time'),
-            'ISO 8601 datetime should pass validation after normalization. Errors: ' . $validator->errors()->toJson()
+            'ISO 8601 datetime should pass validation after normalization. Errors: '.$validator->errors()->toJson()
         );
     }
 
@@ -249,11 +250,11 @@ class AppointmentDateTimeContractTest extends TestCase
     {
         $request = StoreAppointmentRequest::create('/api/v1/appointments', 'POST', [
             'appointment_time' => '2026-09-15T14:30',
-            'branch_id'        => $this->branch->id,
-            'type'             => 'check_up',
-            'status'           => 'booking',
-            'patient'          => [
-                'name'  => 'Test Patient',
+            'branch_id' => $this->branch->id,
+            'type' => 'check_up',
+            'status' => 'booking',
+            'patient' => [
+                'name' => 'Test Patient',
                 'phone' => '01000000000',
             ],
         ]);
@@ -263,12 +264,12 @@ class AppointmentDateTimeContractTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($request);
 
-        $rules = (new StoreAppointmentRequest())->rules();
+        $rules = (new StoreAppointmentRequest)->rules();
         $validator = validator($request->all(), $rules);
 
         $this->assertFalse(
             $validator->errors()->has('appointment_time'),
-            'HTML5 datetime-local should pass validation after normalization. Errors: ' . $validator->errors()->toJson()
+            'HTML5 datetime-local should pass validation after normalization. Errors: '.$validator->errors()->toJson()
         );
     }
 
@@ -277,11 +278,11 @@ class AppointmentDateTimeContractTest extends TestCase
     {
         $request = StoreAppointmentRequest::create('/api/v1/appointments', 'POST', [
             'appointment_time' => '2026-09-15 14:30:00',
-            'branch_id'        => $this->branch->id,
-            'type'             => 'check_up',
-            'status'           => 'booking',
-            'patient'          => [
-                'name'  => 'Test Patient',
+            'branch_id' => $this->branch->id,
+            'type' => 'check_up',
+            'status' => 'booking',
+            'patient' => [
+                'name' => 'Test Patient',
                 'phone' => '01000000000',
             ],
         ]);
@@ -291,12 +292,12 @@ class AppointmentDateTimeContractTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($request);
 
-        $rules = (new StoreAppointmentRequest())->rules();
+        $rules = (new StoreAppointmentRequest)->rules();
         $validator = validator($request->all(), $rules);
 
         $this->assertFalse(
             $validator->errors()->has('appointment_time'),
-            'Standard SQL datetime should pass validation. Errors: ' . $validator->errors()->toJson()
+            'Standard SQL datetime should pass validation. Errors: '.$validator->errors()->toJson()
         );
     }
 

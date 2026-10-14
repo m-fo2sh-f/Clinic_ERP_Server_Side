@@ -3,15 +3,15 @@
 namespace App\Models;
 
 use App\Enums\PaymentStatus;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'invoice_number',
@@ -30,11 +30,11 @@ class Invoice extends Model
     protected function casts(): array
     {
         return [
-            'subtotal'       => 'decimal:2',
-            'discount'       => 'decimal:2',
-            'total'          => 'decimal:2',
+            'subtotal' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'total' => 'decimal:2',
             'payment_status' => PaymentStatus::class,
-            'paid_at'        => 'datetime',
+            'paid_at' => 'datetime',
         ];
     }
 
@@ -79,7 +79,7 @@ class Invoice extends Model
 
         $this->update([
             'subtotal' => $subtotal,
-            'total'    => $total,
+            'total' => $total,
         ]);
 
         return $this;

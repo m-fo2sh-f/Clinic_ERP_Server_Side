@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\User;
 
 abstract class Controller
@@ -10,7 +11,7 @@ abstract class Controller
      */
     protected function authorizeBranchAccess(?User $user, string|int $branchId): void
     {
-        if (!$user) {
+        if (! $user) {
             abort(401, 'Unauthenticated.');
         }
 
@@ -18,9 +19,8 @@ abstract class Controller
             return;
         }
 
-        if (method_exists($user, 'branches') && !$user->branches()->where('branches.id', $branchId)->exists()) {
+        if (method_exists($user, 'branches') && ! $user->branches()->where('branches.id', $branchId)->exists()) {
             abort(403, 'You are not authorized to access this branch.');
         }
     }
 }
-

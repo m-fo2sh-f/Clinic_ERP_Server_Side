@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1\Platform;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTenantBranchRequest extends FormRequest
@@ -17,14 +18,14 @@ class StoreTenantBranchRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'name'      => ['required', 'string', 'max:255'],
-            'address'   => ['nullable', 'string', 'max:500'],
-            'phone'     => ['nullable', 'string', 'max:20'],
+            'name' => ['required', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'phone' => ['nullable', 'string', 'max:20'],
             'is_active' => ['nullable', 'boolean'],
         ];
     }

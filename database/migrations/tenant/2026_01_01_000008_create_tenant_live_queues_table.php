@@ -28,7 +28,7 @@ return new class extends Migration
             $table->index('patient_id', 'idx_queues_patient');
             $table->index(['branch_id', 'created_at'], 'idx_queues_branch_created');
             $table->index(
-                ['branch_id', 'status', 'created_at', 'queue_no'], 
+                ['branch_id', 'status', 'created_at', 'queue_no'],
                 'idx_queues_active_shift_lookup'
             );
         });

@@ -14,29 +14,28 @@ class StoreTenantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'clinic_name'    => ['required', 'string', 'max:255'],
-            'subdomain'      => ['required', 'string', 'alpha_dash', 'max:50', 'unique:domains,domain', 'unique:tenants,id'],
-            'clinic_mode'    => ['nullable', 'string', 'in:solo,polyclinic'],
-            'branch_name'    => ['nullable', 'string', 'max:255'],
-            'admin_name'     => ['required', 'string', 'max:255'],
-            'admin_email'    => ['required', 'email', 'max:255'],
+            'clinic_name' => ['required', 'string', 'max:255'],
+            'subdomain' => ['required', 'string', 'alpha_dash', 'max:50', 'unique:domains,domain', 'unique:tenants,id'],
+            'branch_name' => ['nullable', 'string', 'max:255'],
+            'admin_name' => ['required', 'string', 'max:255'],
+            'admin_email' => ['required', 'email', 'max:255'],
             'admin_password' => ['required', 'string', 'min:8'],
-            'phone'          => ['nullable', 'string', 'max:25'],
+            'phone' => ['nullable', 'string', 'max:25'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'clinic_name.required'    => 'اسم العيادة مطلوب',
-            'subdomain.required'      => 'اسم النطاق الفرعي مطلوب',
-            'subdomain.alpha_dash'    => 'النطاق الفرعي يجب أن يحتوي فقط على حروف وأرقام وشرطات',
-            'subdomain.unique'        => 'هذا النطاق الفرعي محجوز بالفعل',
-            'admin_name.required'     => 'اسم مدير العيادة مطلوب',
-            'admin_email.required'    => 'البريد الإلكتروني لمدير العيادة مطلوب',
-            'admin_email.email'       => 'صيغة البريد الإلكتروني غير صحيحة',
+            'clinic_name.required' => 'اسم العيادة مطلوب',
+            'subdomain.required' => 'اسم النطاق الفرعي مطلوب',
+            'subdomain.alpha_dash' => 'النطاق الفرعي يجب أن يحتوي فقط على حروف وأرقام وشرطات',
+            'subdomain.unique' => 'هذا النطاق الفرعي محجوز بالفعل',
+            'admin_name.required' => 'اسم مدير العيادة مطلوب',
+            'admin_email.required' => 'البريد الإلكتروني لمدير العيادة مطلوب',
+            'admin_email.email' => 'صيغة البريد الإلكتروني غير صحيحة',
             'admin_password.required' => 'كلمة المرور المؤقتة مطلوبة',
-            'admin_password.min'      => 'كلمة المرور يجب ألا تقل عن 8 أحرف',
+            'admin_password.min' => 'كلمة المرور يجب ألا تقل عن 8 أحرف',
         ];
     }
 }

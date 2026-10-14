@@ -6,7 +6,7 @@ use App\Models\Patient;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Patient>
+ * @extends Factory<Patient>
  */
 class PatientFactory extends Factory
 {
@@ -31,7 +31,7 @@ class PatientFactory extends Factory
             // tenant_id will be automatically populated via stancl/tenancy context
             // id is automatically generated as UUID via HasUuids trait
             'name' => fake('ar_EG')->name(),
-            'phone' => fake()->randomElement($prefixes) . fake()->numerify('########'),
+            'phone' => fake()->randomElement($prefixes).fake()->numerify('########'),
             'age' => fake()->numberBetween(1, 90),
             'gender' => fake()->randomElement(['male', 'female']),
             'medical_history' => fake()->optional(0.7)->sentence(6),

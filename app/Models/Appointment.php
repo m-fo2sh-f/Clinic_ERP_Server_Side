@@ -4,15 +4,15 @@ namespace App\Models;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\AppointmentType;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Appointment extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'branch_id',
@@ -26,8 +26,8 @@ class Appointment extends Model
     protected function casts(): array
     {
         return [
-            'status'           => AppointmentStatus::class,
-            'type'             => AppointmentType::class,
+            'status' => AppointmentStatus::class,
+            'type' => AppointmentType::class,
             'appointment_time' => 'datetime',
         ];
     }

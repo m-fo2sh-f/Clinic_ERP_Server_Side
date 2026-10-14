@@ -19,12 +19,12 @@ class PlatformTenantListResource extends JsonResource
             : $this->domains()->first()?->domain;
 
         return [
-            'id'             => $this->id,
-            'clinic_name'    => $this->clinic_name ?? $this->id,
-            'domain'         => $domain ?? ($this->id . '.my-saas.test'),
-            'is_active'      => (bool) ($this->is_active ?? true),
+            'id' => $this->id,
+            'clinic_name' => $this->clinic_name ?? $this->id,
+            'domain' => $domain ?? ($this->id.'.my-saas.test'),
+            'is_active' => (bool) ($this->is_active ?? true),
             'branches_count' => (int) ($this->branches_count ?? 0),
-            'created_at'     => $this->created_at?->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }

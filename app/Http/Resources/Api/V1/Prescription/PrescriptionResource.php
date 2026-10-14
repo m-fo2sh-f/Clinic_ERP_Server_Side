@@ -15,14 +15,14 @@ class PrescriptionResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'                => $this->id,
+            'id' => $this->id,
             'prescription_code' => $this->prescription_code,
             'prescription_date' => $this->prescription_date?->toDateString(),
-            'general_advice'    => $this->general_advice,
-            'follow_up_date'    => $this->follow_up_date?->toDateString(),
-            'doctor_name'       => $this->whenLoaded('doctor', fn () => $this->doctor->name),
-            'items'             => PrescriptionItemResource::collection($this->whenLoaded('items')),
-            'created_at'        => $this->created_at?->toIso8601String(),
+            'general_advice' => $this->general_advice,
+            'follow_up_date' => $this->follow_up_date?->toDateString(),
+            'doctor_name' => $this->whenLoaded('doctor', fn () => $this->doctor->name),
+            'items' => PrescriptionItemResource::collection($this->whenLoaded('items')),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }

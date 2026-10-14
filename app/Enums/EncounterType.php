@@ -4,9 +4,9 @@ namespace App\Enums;
 
 enum EncounterType: string
 {
-    case WALK_IN   = 'walk_in';
+    case WALK_IN = 'walk_in';
     case SCHEDULED = 'scheduled';
-    case CHECK_UP  = 'check_up';
+    case CHECK_UP = 'check_up';
     case FOLLOW_UP = 'follow_up';
     case EMERGENCY = 'emergency';
 

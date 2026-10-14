@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\ClinicMode;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClinicSetting extends Model
@@ -13,7 +12,6 @@ class ClinicSetting extends Model
 
     protected $fillable = [
         'branch_id',
-        'clinic_mode',
         'queue_strategy',
         'avg_appointment_duration',
         'vitals_config',
@@ -22,8 +20,7 @@ class ClinicSetting extends Model
     protected function casts(): array
     {
         return [
-            'clinic_mode'              => ClinicMode::class,
-            'vitals_config'            => 'array',
+            'vitals_config' => 'array',
             'avg_appointment_duration' => 'integer',
         ];
     }

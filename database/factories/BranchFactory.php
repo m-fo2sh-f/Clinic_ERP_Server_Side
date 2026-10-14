@@ -6,7 +6,7 @@ use App\Models\Branch;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Branch>
+ * @extends Factory<Branch>
  */
 class BranchFactory extends Factory
 {
@@ -15,7 +15,7 @@ class BranchFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'    => fake()->city() . ' Branch',
+            'name' => fake()->city().' Branch',
             'address' => fake()->address(),
         ];
     }

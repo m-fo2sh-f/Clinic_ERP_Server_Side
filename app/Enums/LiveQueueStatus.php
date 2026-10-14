@@ -4,13 +4,13 @@ namespace App\Enums;
 
 enum LiveQueueStatus: string
 {
-    case CHECKED_IN        = 'checked_in';
-    case WAITING           = 'waiting';
+    case CHECKED_IN = 'checked_in';
+    case WAITING = 'waiting';
     case UNDER_EXAMINATION = 'under_examination';
-    case PENDING_PAYMENT   = 'pending_payment';
-    case COMPLETED         = 'completed';
-    case CANCELLED         = 'cancelled';
-    case NO_SHOW           = 'no_show';
+    case PENDING_PAYMENT = 'pending_payment';
+    case COMPLETED = 'completed';
+    case CANCELLED = 'cancelled';
+    case NO_SHOW = 'no_show';
 
     /**
      * Get active queue statuses for branch queries.

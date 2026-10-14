@@ -2,17 +2,19 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\Drug;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
 
 class DrugSearchTest extends TestCase
 {
     use RefreshDatabase;
 
     protected Drug $drugPanadol;
+
     protected Drug $drugAugmentin;
+
     protected Drug $drugConcor;
 
     protected function setUp(): void
@@ -21,36 +23,36 @@ class DrugSearchTest extends TestCase
 
         // 1. Seed dedicated test drugs
         $this->drugPanadol = Drug::create([
-            'trade_name'        => 'Panadol Extra',
+            'trade_name' => 'Panadol Extra',
             'active_ingredient' => 'Paracetamol 500mg / Caffeine 65mg',
-            'form'              => 'Tablet',
-            'strength'          => '500mg/65mg',
-            'company'           => 'GSK Consumer Healthcare',
-            'price'             => 35.00,
+            'form' => 'Tablet',
+            'strength' => '500mg/65mg',
+            'company' => 'GSK Consumer Healthcare',
+            'price' => 35.00,
             'therapeutic_class' => 'Analgesic',
-            'barcode'           => '6221111222233',
+            'barcode' => '6221111222233',
         ]);
 
         $this->drugAugmentin = Drug::create([
-            'trade_name'        => 'Augmentin 1g',
+            'trade_name' => 'Augmentin 1g',
             'active_ingredient' => 'Amoxicillin 875mg / Clavulanic Acid 125mg',
-            'form'              => 'Tablet',
-            'strength'          => '1g',
-            'company'           => 'GlaxoSmithKline',
-            'price'             => 120.00,
+            'form' => 'Tablet',
+            'strength' => '1g',
+            'company' => 'GlaxoSmithKline',
+            'price' => 120.00,
             'therapeutic_class' => 'Antibiotic',
-            'barcode'           => '6224444555566',
+            'barcode' => '6224444555566',
         ]);
 
         $this->drugConcor = Drug::create([
-            'trade_name'        => 'Concor Cor 2.5mg',
+            'trade_name' => 'Concor Cor 2.5mg',
             'active_ingredient' => 'Bisoprolol Fumarate',
-            'form'              => 'Tablet',
-            'strength'          => '2.5mg',
-            'company'           => 'Merck Healthcare',
-            'price'             => 45.00,
+            'form' => 'Tablet',
+            'strength' => '2.5mg',
+            'company' => 'Merck Healthcare',
+            'price' => 45.00,
             'therapeutic_class' => 'Beta Blocker',
-            'barcode'           => '6227777888899',
+            'barcode' => '6227777888899',
         ]);
 
         // Commit transaction to flush MySQL InnoDB Full-Text cache to inverted index

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ClinicMode;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterType;
 use App\Enums\PaymentStatus;
@@ -75,7 +74,6 @@ class EncounterEdgeCasesTest extends TestCase
 
         ClinicSetting::create([
             'branch_id' => $this->branch1->id,
-            'clinic_mode' => ClinicMode::POLYCLINIC->value,
             'queue_strategy' => 'hybrid',
             'avg_appointment_duration' => 15,
             'vitals_config' => [
@@ -87,7 +85,6 @@ class EncounterEdgeCasesTest extends TestCase
 
         ClinicSetting::create([
             'branch_id' => $this->branch2->id,
-            'clinic_mode' => ClinicMode::POLYCLINIC->value,
             'queue_strategy' => 'hybrid',
             'avg_appointment_duration' => 15,
         ]);

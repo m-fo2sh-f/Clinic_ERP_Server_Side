@@ -2,16 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
 use App\Models\Branch;
+use App\Models\BranchService;
 use App\Models\ClinicSetting;
 use App\Models\Service;
-use App\Models\BranchService;
-use App\Enums\ClinicMode;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class TenantDatabaseSeeder extends Seeder
 {
@@ -94,8 +93,8 @@ class TenantDatabaseSeeder extends Seeder
         } elseif ($tenantId === 'tenant-2') {
             $this->seedClinicB($ownerRole, $doctorRole, $receptionistRole, $passwordHash);
         } elseif ($tenantId === 'tenant-3') {
-            $this->seedClinicC($ownerRole, $doctorRole, $passwordHash);
-        } elseif (app()->runningUnitTests() && (str_starts_with((string)$tenantId, 'super') || str_starts_with((string)$tenantId, 'alpha') || str_starts_with((string)$tenantId, 'beta') || str_starts_with((string)$tenantId, 'test-'))) {
+            $this->seedClinicC($ownerRole, $doctorRole, $receptionistRole, $passwordHash);
+        } elseif (app()->runningUnitTests()) {
             // Test suites handle their own custom entity seeding in setUp()
             return;
         } else {
@@ -122,11 +121,11 @@ class TenantDatabaseSeeder extends Seeder
 
         ClinicSetting::updateOrCreate(
             ['branch_id' => $branch1->id],
-            ['clinic_mode' => ClinicMode::POLYCLINIC->value, 'queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
         );
         ClinicSetting::updateOrCreate(
             ['branch_id' => $branch2->id],
-            ['clinic_mode' => ClinicMode::POLYCLINIC->value, 'queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
         );
 
         $consultService = Service::firstOrCreate(
@@ -207,11 +206,11 @@ class TenantDatabaseSeeder extends Seeder
 
         ClinicSetting::updateOrCreate(
             ['branch_id' => $eastWing->id],
-            ['clinic_mode' => ClinicMode::POLYCLINIC->value, 'queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20]
         );
         ClinicSetting::updateOrCreate(
             ['branch_id' => $westWing->id],
-            ['clinic_mode' => ClinicMode::POLYCLINIC->value, 'queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20]
         );
 
         $specializedService = Service::firstOrCreate(
@@ -281,10 +280,10 @@ class TenantDatabaseSeeder extends Seeder
     }
 
     /**
-     * 🏥 Clinic C: Solo Doctor Walk-In
-     * 1 Branch, 1 Doctor only (no receptionist, cashier, or assistants), instant checkout & dynamic vitals.
+     * 🏥 Clinic C: Zayed Branch
+     * 1 Branch, 1 Doctor, 1 Receptionist.
      */
-    protected function seedClinicC(Role $ownerRole, Role $doctorRole, string $passwordHash): void
+    protected function seedClinicC(Role $ownerRole, Role $doctorRole, Role $receptionistRole, string $passwordHash): void
     {
         $mainBranch = Branch::firstOrCreate(
             ['name' => 'Main Branch - الفرع الرئيسي'],
@@ -307,10 +306,9 @@ class TenantDatabaseSeeder extends Seeder
         ClinicSetting::updateOrCreate(
             ['branch_id' => $mainBranch->id],
             [
-                'clinic_mode'              => ClinicMode::SOLO->value,
-                'queue_strategy'           => 'hybrid',
+                'queue_strategy' => 'hybrid',
                 'avg_appointment_duration' => 15,
-                'vitals_config'            => $vitalsConfig,
+                'vitals_config' => $vitalsConfig,
             ]
         );
 
@@ -332,7 +330,7 @@ class TenantDatabaseSeeder extends Seeder
             ['price' => 300.00, 'is_available' => true]
         );
 
-        // Doctor only - no assistants, cashiers, or receptionists
+        // Doctor
         $doctor = User::updateOrCreate(
             ['email' => 'dr.sherif@solo.test'],
             ['name' => 'د. شريف عبد المنعم (Dr. Sherif)', 'password' => $passwordHash, 'is_super_admin' => false]
@@ -346,6 +344,14 @@ class TenantDatabaseSeeder extends Seeder
         );
         $doctorAlias->syncRoles([$ownerRole, $doctorRole]);
         $doctorAlias->branches()->sync([$mainBranch->id]);
+
+        // Receptionist
+        $receptionist = User::updateOrCreate(
+            ['email' => 'reception.zayed@clinicc.test'],
+            ['name' => 'سارة - استقبال الشيخ زايد (Receptionist Zayed)', 'password' => $passwordHash, 'is_super_admin' => false]
+        );
+        $receptionist->syncRoles([$receptionistRole]);
+        $receptionist->branches()->sync([$mainBranch->id]);
     }
 
     /**
@@ -353,7 +359,6 @@ class TenantDatabaseSeeder extends Seeder
      */
     protected function seedDefaultClinic($tenant, Role $ownerRole, Role $doctorRole, Role $receptionistRole, string $passwordHash): void
     {
-        $clinicMode = $tenant?->clinic_mode ?? ($tenant?->data['clinic_mode'] ?? 'solo');
         $branchName = $tenant?->branch_name ?? ($tenant?->data['branch_name'] ?? 'الفرع الرئيسي');
         $plainPassword = $tenant?->admin_password ?? ($tenant?->data['admin_password'] ?? null);
         $passHash = $plainPassword ? Hash::make($plainPassword) : $passwordHash;
@@ -363,58 +368,23 @@ class TenantDatabaseSeeder extends Seeder
             ['address' => 'المركز الرئيسي', 'is_active' => true]
         );
 
-        if ($clinicMode === 'solo' || $clinicMode === ClinicMode::SOLO->value) {
-            $vitalsConfig = [
-                ['key' => 'bp_systolic', 'label' => 'Blood Pressure (Systolic)', 'unit' => 'mmHg', 'type' => 'number', 'is_active' => true],
-                ['key' => 'bp_diastolic', 'label' => 'Blood Pressure (Diastolic)', 'unit' => 'mmHg', 'type' => 'number', 'is_active' => true],
-                ['key' => 'heart_rate', 'label' => 'Heart Rate', 'unit' => 'bpm', 'type' => 'number', 'is_active' => true],
-                ['key' => 'temperature', 'label' => 'Body Temperature', 'unit' => '°C', 'type' => 'number', 'is_active' => true],
-                ['key' => 'respiratory_rate', 'label' => 'Respiratory Rate', 'unit' => 'bpm', 'type' => 'number', 'is_active' => true],
-                ['key' => 'spo2', 'label' => 'Oxygen Saturation (SpO2)', 'unit' => '%', 'type' => 'number', 'is_active' => true],
-                ['key' => 'weight', 'label' => 'Weight', 'unit' => 'kg', 'type' => 'number', 'is_active' => true],
-                ['key' => 'height', 'label' => 'Height', 'unit' => 'cm', 'type' => 'number', 'is_active' => true],
-                ['key' => 'bmi', 'label' => 'Body Mass Index (BMI)', 'unit' => 'kg/m²', 'type' => 'number', 'is_active' => true],
-                ['key' => 'blood_sugar', 'label' => 'Random Blood Sugar', 'unit' => 'mg/dL', 'type' => 'number', 'is_active' => true],
-            ];
+        ClinicSetting::updateOrCreate(
+            ['branch_id' => $mainBranch->id],
+            [
+                'queue_strategy' => 'scheduled',
+                'avg_appointment_duration' => 20,
+                'vitals_config' => [],
+            ]
+        );
 
-            ClinicSetting::updateOrCreate(
-                ['branch_id' => $mainBranch->id],
-                [
-                    'clinic_mode'              => ClinicMode::SOLO->value,
-                    'queue_strategy'           => 'hybrid',
-                    'avg_appointment_duration' => 15,
-                    'vitals_config'            => $vitalsConfig,
-                ]
-            );
-
-            $consultService = Service::firstOrCreate(
-                ['code' => 'CONSULT-SOLO'],
-                ['name' => 'كشف كونسلتو شامل', 'default_price' => 200.00, 'is_active' => true]
-            );
-            BranchService::firstOrCreate(
-                ['branch_id' => $mainBranch->id, 'service_id' => $consultService->id],
-                ['price' => 200.00, 'is_available' => true]
-            );
-        } else {
-            ClinicSetting::updateOrCreate(
-                ['branch_id' => $mainBranch->id],
-                [
-                    'clinic_mode'              => ClinicMode::POLYCLINIC->value,
-                    'queue_strategy'           => 'scheduled',
-                    'avg_appointment_duration' => 20,
-                    'vitals_config'            => [],
-                ]
-            );
-
-            $consultService = Service::firstOrCreate(
-                ['code' => 'GEN-01'],
-                ['name' => 'كشف عام', 'default_price' => 150.00, 'is_active' => true]
-            );
-            BranchService::firstOrCreate(
-                ['branch_id' => $mainBranch->id, 'service_id' => $consultService->id],
-                ['price' => 150.00, 'is_available' => true]
-            );
-        }
+        $consultService = Service::firstOrCreate(
+            ['code' => 'GEN-01'],
+            ['name' => 'كشف عام', 'default_price' => 150.00, 'is_active' => true]
+        );
+        BranchService::firstOrCreate(
+            ['branch_id' => $mainBranch->id, 'service_id' => $consultService->id],
+            ['price' => 150.00, 'is_available' => true]
+        );
 
         $ownerEmail = $tenant?->owner_email ?? ($tenant?->data['admin_email'] ?? 'admin@clinic.test');
         $ownerName = $tenant?->admin_name ?? ($tenant?->data['admin_name'] ?? 'مدير العيادة');
@@ -424,11 +394,7 @@ class TenantDatabaseSeeder extends Seeder
             ['name' => $ownerName, 'password' => $passHash, 'is_super_admin' => false]
         );
 
-        if ($clinicMode === 'solo' || $clinicMode === ClinicMode::SOLO->value) {
-            $owner->syncRoles([$ownerRole, $doctorRole]);
-        } else {
-            $owner->syncRoles([$ownerRole]);
-        }
+        $owner->syncRoles([$ownerRole]);
 
         $owner->branches()->syncWithoutDetaching([$mainBranch->id]);
     }

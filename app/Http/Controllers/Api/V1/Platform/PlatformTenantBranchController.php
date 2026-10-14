@@ -27,13 +27,13 @@ class PlatformTenantBranchController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم إنشاء الفرع بنجاح',
-            'data'    => [
-                'id'        => $branch->id,
-                'name'      => $branch->name,
-                'address'   => $branch->address,
-                'phone'     => $branch->phone,
+            'data' => [
+                'id' => $branch->id,
+                'name' => $branch->name,
+                'address' => $branch->address,
+                'phone' => $branch->phone,
                 'is_active' => (bool) $branch->is_active,
             ],
         ], 201);
@@ -53,13 +53,13 @@ class PlatformTenantBranchController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تحديث بيانات الفرع بنجاح',
-            'data'    => [
-                'id'        => $branch->id,
-                'name'      => $branch->name,
-                'address'   => $branch->address,
-                'phone'     => $branch->phone,
+            'data' => [
+                'id' => $branch->id,
+                'name' => $branch->name,
+                'address' => $branch->address,
+                'phone' => $branch->phone,
                 'is_active' => (bool) $branch->is_active,
             ],
         ]);

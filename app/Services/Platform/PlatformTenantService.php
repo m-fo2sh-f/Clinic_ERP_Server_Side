@@ -8,7 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PlatformTenantService
 {
@@ -19,14 +19,14 @@ class PlatformTenantService
     {
         $query = Tenant::query()->with(['domains']);
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = trim($filters['search']);
             $query->where(function ($q) use ($search) {
                 $q->where('id', 'LIKE', "%{$search}%")
-                  ->orWhere('data->clinic_name', 'LIKE', "%{$search}%")
-                  ->orWhereHas('domains', function ($domainQuery) use ($search) {
-                      $domainQuery->where('domain', 'LIKE', "%{$search}%");
-                  });
+                    ->orWhere('data->clinic_name', 'LIKE', "%{$search}%")
+                    ->orWhereHas('domains', function ($domainQuery) use ($search) {
+                        $domainQuery->where('domain', 'LIKE', "%{$search}%");
+                    });
             });
         }
 
@@ -43,6 +43,7 @@ class PlatformTenantService
             } catch (\Throwable) {
                 $tenant->branches_count = 0;
             }
+
             return $tenant;
         });
 
@@ -54,21 +55,19 @@ class PlatformTenantService
      */
     public function createTenant(array $data, User $superAdmin, Request $request): Tenant
     {
-        $subdomain = \Illuminate\Support\Str::slug($data['subdomain']);
-        $clinicMode = $data['clinic_mode'] ?? 'solo';
-        $branchName = !empty($data['branch_name']) ? trim($data['branch_name']) : 'الفرع الرئيسي';
+        $subdomain = Str::slug($data['subdomain']);
+        $branchName = ! empty($data['branch_name']) ? trim($data['branch_name']) : 'الفرع الرئيسي';
 
         // 1. Create Tenant (triggers Stancl pipeline: CreateDatabase, MigrateDatabase, SeedDatabase)
         $tenant = Tenant::create([
-            'id'             => $subdomain,
-            'clinic_name'    => $data['clinic_name'],
-            'owner_email'    => $data['admin_email'],
-            'is_active'      => true,
-            'admin_name'     => $data['admin_name'],
+            'id' => $subdomain,
+            'clinic_name' => $data['clinic_name'],
+            'owner_email' => $data['admin_email'],
+            'is_active' => true,
+            'admin_name' => $data['admin_name'],
             'admin_password' => $data['admin_password'],
-            'phone'          => $data['phone'] ?? null,
-            'clinic_mode'    => $clinicMode,
-            'branch_name'    => $branchName,
+            'phone' => $data['phone'] ?? null,
+            'branch_name' => $branchName,
         ]);
 
         // 2. Create Domain records (Dual Domain locally for zero-config, single domain in production)
@@ -83,11 +82,11 @@ class PlatformTenantService
         // 3. Log Immutable Audit Record
         PlatformAuditLog::create([
             'super_admin_id' => $superAdmin->id,
-            'action'         => 'create_tenant',
-            'tenant_id'      => $tenant->id,
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'created_at'     => now(),
+            'action' => 'create_tenant',
+            'tenant_id' => $tenant->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
         ]);
 
         $branches = $tenant->run(fn () => Branch::all());
@@ -104,6 +103,7 @@ class PlatformTenantService
         $tenant = Tenant::with('domains')->findOrFail($tenantId);
         $branches = $tenant->run(fn () => Branch::all());
         $tenant->setRelation('branches', $branches);
+
         return $tenant;
     }
 
@@ -143,11 +143,11 @@ class PlatformTenantService
         // Create immutable audit log entry
         PlatformAuditLog::create([
             'super_admin_id' => $superAdmin->id,
-            'action'         => $isActive ? 'activate_tenant' : 'suspend_tenant',
-            'tenant_id'      => $tenant->id,
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'created_at'     => now(),
+            'action' => $isActive ? 'activate_tenant' : 'suspend_tenant',
+            'tenant_id' => $tenant->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
         ]);
 
         return $tenant;
@@ -172,11 +172,11 @@ class PlatformTenantService
 
         PlatformAuditLog::create([
             'super_admin_id' => $superAdmin->id,
-            'action'         => 'update_tenant',
-            'tenant_id'      => $tenant->id,
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'created_at'     => now(),
+            'action' => 'update_tenant',
+            'tenant_id' => $tenant->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
         ]);
 
         return $tenant;
@@ -191,11 +191,11 @@ class PlatformTenantService
 
         PlatformAuditLog::create([
             'super_admin_id' => $superAdmin->id,
-            'action'         => 'delete_tenant',
-            'tenant_id'      => $tenant->id,
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'created_at'     => now(),
+            'action' => 'delete_tenant',
+            'tenant_id' => $tenant->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
         ]);
 
         $tenant->delete();

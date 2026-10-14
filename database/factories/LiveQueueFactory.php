@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Enums\LiveQueueStatus;
 use App\Models\LiveQueue;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\LiveQueue>
+ * @extends Factory<LiveQueue>
  */
 class LiveQueueFactory extends Factory
 {
@@ -28,7 +29,7 @@ class LiveQueueFactory extends Factory
             // id is automatically generated as UUID via HasUuids trait
             // tenant_id will be automatically populated via stancl/tenancy context
             // branch_id, patient_id, appointment_id, queue_no will be provided in Seeder
-            'status' => fake()->randomElement(\App\Enums\LiveQueueStatus::values()),
+            'status' => fake()->randomElement(LiveQueueStatus::values()),
             'queue_no' => fake()->numberBetween(1, 100),
             'checked_in_at' => fake()->time('H:i:s'),
         ];

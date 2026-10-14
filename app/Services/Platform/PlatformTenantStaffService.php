@@ -7,7 +7,6 @@ use App\Models\PlatformAuditLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class PlatformTenantStaffService
@@ -30,7 +29,7 @@ class PlatformTenantStaffService
             }
 
             $user->update([
-                'name'  => $data['name'],
+                'name' => $data['name'],
                 'email' => $data['email'],
             ]);
 
@@ -42,11 +41,11 @@ class PlatformTenantStaffService
 
             PlatformAuditLog::create([
                 'super_admin_id' => $superAdmin->id,
-                'action'         => 'update_tenant_user',
-                'tenant_id'      => $tenantId,
-                'ip_address'     => $request->ip(),
-                'user_agent'     => $request->userAgent(),
-                'created_at'     => now(),
+                'action' => 'update_tenant_user',
+                'tenant_id' => $tenantId,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
             ]);
 
             $user->tenant_roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames()->toArray() : [];
@@ -74,11 +73,11 @@ class PlatformTenantStaffService
 
         PlatformAuditLog::create([
             'super_admin_id' => $superAdmin->id,
-            'action'         => 'reset_tenant_user_password',
-            'tenant_id'      => $tenantId,
-            'ip_address'     => $request->ip(),
-            'user_agent'     => $request->userAgent(),
-            'created_at'     => now(),
+            'action' => 'reset_tenant_user_password',
+            'tenant_id' => $tenantId,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
         ]);
     }
 }

@@ -3,14 +3,14 @@
 namespace App\Models;
 
 use App\Enums\LiveQueueStatus;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LiveQueue extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'branch_id',
@@ -27,7 +27,7 @@ class LiveQueue extends Model
     protected function casts(): array
     {
         return [
-            'status'     => LiveQueueStatus::class,
+            'status' => LiveQueueStatus::class,
             'shift_date' => 'date',
         ];
     }

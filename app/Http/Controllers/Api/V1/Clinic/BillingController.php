@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api\V1\Clinic;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Billing\AddServiceItemRequest;
 use App\Http\Requests\Api\V1\Billing\ProcessPaymentRequest;
+use App\Models\Appointment;
+use App\Models\Encounter;
 use App\Models\Invoice;
+use App\Models\LiveQueue;
 use App\Services\Clinic\BillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,16 +29,16 @@ class BillingController extends Controller
     public function index(Request $request): JsonResponse
     {
         $branchId = $request->query('branch_id') ?: $request->header('X-Branch-ID');
-        if (!$branchId) {
+        if (! $branchId) {
             return response()->json(['status' => 'error', 'message' => 'branch_id is required'], 422);
         }
 
         $this->authorizeBranchAccess($request->user(), $branchId);
 
         $filters = [
-            'status'   => $request->query('status'),
-            'date'     => $request->query('date'),
-            'search'   => $request->query('search'),
+            'status' => $request->query('status'),
+            'date' => $request->query('date'),
+            'search' => $request->query('search'),
             'per_page' => $request->query('per_page', 15),
         ];
 
@@ -43,7 +46,7 @@ class BillingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $invoices,
+            'data' => $invoices,
         ]);
     }
 
@@ -54,7 +57,7 @@ class BillingController extends Controller
     public function pending(Request $request): JsonResponse
     {
         $branchId = $request->query('branch_id') ?: $request->header('X-Branch-ID');
-        if (!$branchId) {
+        if (! $branchId) {
             return response()->json(['status' => 'error', 'message' => 'branch_id is required'], 422);
         }
 
@@ -64,7 +67,7 @@ class BillingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $invoices,
+            'data' => $invoices,
         ]);
     }
 
@@ -75,7 +78,7 @@ class BillingController extends Controller
     public function services(Request $request): JsonResponse
     {
         $branchId = $request->query('branch_id') ?: $request->header('X-Branch-ID');
-        if (!$branchId) {
+        if (! $branchId) {
             return response()->json(['status' => 'error', 'message' => 'branch_id is required'], 422);
         }
 
@@ -85,7 +88,7 @@ class BillingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $services,
+            'data' => $services,
         ]);
     }
 
@@ -101,7 +104,7 @@ class BillingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $invoice,
+            'data' => $invoice,
         ]);
     }
 
@@ -118,9 +121,9 @@ class BillingController extends Controller
         $updatedInvoice = $this->billingService->addExtraService($id, $request->validated('service_id'), $quantity);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تمت إضافة الخدمة بنجاح',
-            'data'    => $updatedInvoice,
+            'data' => $updatedInvoice,
         ]);
     }
 
@@ -136,9 +139,9 @@ class BillingController extends Controller
         $updatedInvoice = $this->billingService->removeServiceItem($id, $itemId);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم حذف البند بنجاح',
-            'data'    => $updatedInvoice,
+            'data' => $updatedInvoice,
         ]);
     }
 
@@ -149,7 +152,7 @@ class BillingController extends Controller
     public function pay(ProcessPaymentRequest $request, string $id): JsonResponse
     {
         $user = $request->user();
-        if ($user->hasRole('doctor') && !$user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
+        if ($user->hasRole('doctor') && ! $user->hasAnyRole(['receptionist', 'clinic_owner', 'tenant_admin'])) {
             abort(403, 'غير مصرح للطبيب بتحصيل مدفوعات الفواتير.');
         }
 
@@ -160,9 +163,9 @@ class BillingController extends Controller
         $updatedInvoice = $this->billingService->processPayment($id, $paymentsData, $user->id);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تسجيل الدفع بنجاح',
-            'data'    => $updatedInvoice,
+            'data' => $updatedInvoice,
         ]);
     }
 
@@ -172,14 +175,14 @@ class BillingController extends Controller
      */
     public function forAppointment(Request $request, string $appointmentId): JsonResponse
     {
-        $appointment = \App\Models\Appointment::findOrFail($appointmentId);
+        $appointment = Appointment::findOrFail($appointmentId);
         $this->authorizeBranchAccess($request->user(), $appointment->branch_id);
 
         $invoice = $this->billingService->createInvoiceForAppointment($appointment);
 
         return response()->json([
             'status' => 'success',
-            'data'   => $invoice->load(['items', 'patient', 'appointment.doctor', 'branch']),
+            'data' => $invoice->load(['items', 'patient', 'appointment.doctor', 'branch']),
         ]);
     }
 
@@ -189,13 +192,13 @@ class BillingController extends Controller
      */
     public function forQueueItem(Request $request, string $queueId): JsonResponse
     {
-        $queueItem = \App\Models\LiveQueue::find($queueId);
+        $queueItem = LiveQueue::find($queueId);
         if (! $queueItem) {
-            $encounter = \App\Models\Encounter::find($queueId);
+            $encounter = Encounter::find($queueId);
             if ($encounter) {
                 return $this->forEncounter($request, $queueId);
             }
-            $appointment = \App\Models\Appointment::find($queueId);
+            $appointment = Appointment::find($queueId);
             if ($appointment) {
                 return $this->forAppointment($request, $queueId);
             }
@@ -208,7 +211,7 @@ class BillingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $invoice->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor', 'branch']),
+            'data' => $invoice->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor', 'branch']),
         ]);
     }
 
@@ -218,14 +221,14 @@ class BillingController extends Controller
      */
     public function forEncounter(Request $request, string $encounterId): JsonResponse
     {
-        $encounter = \App\Models\Encounter::findOrFail($encounterId);
+        $encounter = Encounter::findOrFail($encounterId);
         $this->authorizeBranchAccess($request->user(), $encounter->branch_id);
 
         $invoice = $this->billingService->createInvoiceForEncounter($encounter);
 
         return response()->json([
             'status' => 'success',
-            'data'   => $invoice->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor', 'branch']),
+            'data' => $invoice->load(['items', 'patient', 'appointment.doctor', 'encounter.doctor', 'branch']),
         ]);
     }
 
@@ -236,22 +239,22 @@ class BillingController extends Controller
     public function storeService(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'          => 'required|string|max:255',
-            'code'          => 'nullable|string|max:50',
-            'price'         => 'required|numeric|min:0',
-            'branch_id'     => 'nullable|string|exists:branches,id',
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:50',
+            'price' => 'required|numeric|min:0',
+            'branch_id' => 'nullable|string|exists:branches,id',
         ]);
 
-        if (!empty($validated['branch_id'])) {
+        if (! empty($validated['branch_id'])) {
             $this->authorizeBranchAccess($request->user(), $validated['branch_id']);
         }
 
         $service = $this->billingService->createService($validated, $validated['branch_id'] ?? null);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تمت إضافة الخدمة بنجاح',
-            'data'    => $service,
+            'data' => $service,
         ], 201);
     }
 
@@ -262,23 +265,23 @@ class BillingController extends Controller
     public function updateService(Request $request, string $id): JsonResponse
     {
         $validated = $request->validate([
-            'name'          => 'sometimes|required|string|max:255',
-            'code'          => 'nullable|string|max:50',
-            'price'         => 'sometimes|required|numeric|min:0',
-            'is_active'     => 'sometimes|boolean',
-            'branch_id'     => 'nullable|string|exists:branches,id',
+            'name' => 'sometimes|required|string|max:255',
+            'code' => 'nullable|string|max:50',
+            'price' => 'sometimes|required|numeric|min:0',
+            'is_active' => 'sometimes|boolean',
+            'branch_id' => 'nullable|string|exists:branches,id',
         ]);
 
-        if (!empty($validated['branch_id'])) {
+        if (! empty($validated['branch_id'])) {
             $this->authorizeBranchAccess($request->user(), $validated['branch_id']);
         }
 
         $service = $this->billingService->updateService($id, $validated, $validated['branch_id'] ?? null);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تحديث بيانات الخدمة بنجاح',
-            'data'    => $service,
+            'data' => $service,
         ]);
     }
 
@@ -291,7 +294,7 @@ class BillingController extends Controller
         $this->billingService->deleteService($id);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تعطيل الخدمة بنجاح',
         ]);
     }

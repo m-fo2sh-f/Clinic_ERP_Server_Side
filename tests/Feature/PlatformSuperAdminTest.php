@@ -17,12 +17,19 @@ class PlatformSuperAdminTest extends TestCase
     use RefreshDatabase;
 
     protected User $superAdmin;
+
     protected User $clinicOwner;
+
     protected User $receptionist;
+
     protected Tenant $tenant1;
+
     protected Tenant $tenant2;
+
     protected string $superAdminToken;
+
     protected string $clinicOwnerToken;
+
     protected string $receptionistToken;
 
     protected function setUp(): void
@@ -31,9 +38,9 @@ class PlatformSuperAdminTest extends TestCase
 
         // 1. Create Platform Super Admin
         $this->superAdmin = User::create([
-            'name'      => 'Platform Admin',
-            'email'     => 'superadmin@platform.test',
-            'password'  => Hash::make('password'),
+            'name' => 'Platform Admin',
+            'email' => 'superadmin@platform.test',
+            'password' => Hash::make('password'),
             'tenant_id' => null,
         ]);
         $this->superAdmin->is_super_admin = true;
@@ -42,24 +49,24 @@ class PlatformSuperAdminTest extends TestCase
         $this->superAdminToken = $this->superAdmin->createToken('super-admin-token')->plainTextToken;
 
         // 2. Create Tenants
-        $id1 = 'super1-' . Str::random(6);
-        $id2 = 'super2-' . Str::random(6);
+        $id1 = 'super1-'.Str::random(6);
+        $id2 = 'super2-'.Str::random(6);
 
         $this->tenant1 = Tenant::create(['id' => $id1]);
         $this->tenant1->is_active = true;
         $this->tenant1->save();
-        $this->tenant1->domains()->create(['domain' => $id1 . '.test']);
+        $this->tenant1->domains()->create(['domain' => $id1.'.test']);
 
         $this->tenant2 = Tenant::create(['id' => $id2]);
         $this->tenant2->is_active = true;
         $this->tenant2->save();
-        $this->tenant2->domains()->create(['domain' => $id2 . '.test']);
+        $this->tenant2->domains()->create(['domain' => $id2.'.test']);
 
         $this->tenant1->run(function () {
             setPermissionsTeamId($this->tenant1->id);
 
             $branch1 = Branch::create([
-                'name'    => 'Main Branch Tenant 1',
+                'name' => 'Main Branch Tenant 1',
                 'address' => 'Cairo, Egypt',
             ]);
 
@@ -68,16 +75,16 @@ class PlatformSuperAdminTest extends TestCase
             $recRole = Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
 
             $this->clinicOwner = User::create([
-                'name'     => 'Dr. Clinic Owner',
-                'email'    => 'owner@tenant1.test',
+                'name' => 'Dr. Clinic Owner',
+                'email' => 'owner@tenant1.test',
                 'password' => Hash::make('password'),
             ]);
             $this->clinicOwner->syncRoles([$ownerRole]);
             $this->clinicOwner->branches()->sync([$branch1->id]);
 
             $this->receptionist = User::create([
-                'name'     => 'Receptionist T1',
-                'email'    => 'reception@tenant1.test',
+                'name' => 'Receptionist T1',
+                'email' => 'reception@tenant1.test',
                 'password' => Hash::make('password'),
             ]);
             $this->receptionist->syncRoles([$recRole]);
@@ -97,19 +104,19 @@ class PlatformSuperAdminTest extends TestCase
     public function test_non_super_admin_receives_403_on_platform_metrics(): void
     {
         $regularUser = User::create([
-            'name'           => 'Regular Central User',
-            'email'          => 'regular@platform.test',
-            'password'       => Hash::make('password'),
+            'name' => 'Regular Central User',
+            'email' => 'regular@platform.test',
+            'password' => Hash::make('password'),
             'is_super_admin' => false,
         ]);
         $regularToken = $regularUser->createToken('regular-token')->plainTextToken;
 
-        $resOwner = $this->withHeader('Authorization', 'Bearer ' . $regularToken)
+        $resOwner = $this->withHeader('Authorization', 'Bearer '.$regularToken)
             ->getJson('/api/v1/platform/metrics');
 
         $resOwner->assertStatus(403);
         $resOwner->assertJson([
-            'status'  => 'error',
+            'status' => 'error',
             'message' => 'غير مصرح لك بالوصول إلى لوحة التحكم المركزية للمنصة.',
         ]);
     }
@@ -117,16 +124,16 @@ class PlatformSuperAdminTest extends TestCase
     /** @test */
     public function test_super_admin_receives_accurate_global_platform_metrics(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
             ->getJson('/api/v1/platform/metrics');
 
         $response->assertStatus(200);
         $response->assertJson([
             'status' => 'success',
-            'data'   => [
-                'total_tenants'      => 2,
-                'active_tenants'     => 2,
-                'total_doctors'      => 0,
+            'data' => [
+                'total_tenants' => 2,
+                'active_tenants' => 2,
+                'total_doctors' => 0,
                 'total_appointments' => 0,
                 'today_appointments' => 0,
             ],
@@ -137,7 +144,7 @@ class PlatformSuperAdminTest extends TestCase
     public function test_super_admin_can_list_tenants_and_view_details(): void
     {
         // List tenants
-        $listRes = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+        $listRes = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
             ->getJson('/api/v1/platform/tenants');
 
         $listRes->assertStatus(200);
@@ -150,15 +157,15 @@ class PlatformSuperAdminTest extends TestCase
         ]);
 
         // Show tenant details
-        $detailRes = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
-            ->getJson('/api/v1/platform/tenants/' . $this->tenant1->id);
+        $detailRes = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
+            ->getJson('/api/v1/platform/tenants/'.$this->tenant1->id);
 
         $detailRes->assertStatus(200);
         $detailRes->assertJson([
             'status' => 'success',
-            'data'   => [
-                'id'             => $this->tenant1->id,
-                'is_active'      => true,
+            'data' => [
+                'id' => $this->tenant1->id,
+                'is_active' => true,
                 'branches_count' => 1,
             ],
         ]);
@@ -167,8 +174,8 @@ class PlatformSuperAdminTest extends TestCase
     /** @test */
     public function test_super_admin_fetches_tenant_staff_with_strictly_scoped_roles(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
-            ->getJson('/api/v1/platform/tenants/' . $this->tenant1->id . '/users');
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
+            ->getJson('/api/v1/platform/tenants/'.$this->tenant1->id.'/users');
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -189,37 +196,37 @@ class PlatformSuperAdminTest extends TestCase
     /** @test */
     public function test_super_admin_can_toggle_tenant_status_and_it_creates_audit_log(): void
     {
-        $toggleRes = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
-            ->postJson('/api/v1/platform/tenants/' . $this->tenant1->id . '/status', [
+        $toggleRes = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
+            ->postJson('/api/v1/platform/tenants/'.$this->tenant1->id.'/status', [
                 'is_active' => false,
             ]);
 
         $toggleRes->assertStatus(200);
         $toggleRes->assertJson([
             'status' => 'success',
-            'data'   => [
-                'id'        => $this->tenant1->id,
+            'data' => [
+                'id' => $this->tenant1->id,
                 'is_active' => false,
             ],
         ]);
 
         $this->assertDatabaseHas('tenants', [
-            'id'        => $this->tenant1->id,
+            'id' => $this->tenant1->id,
             'is_active' => false,
         ]);
 
         $this->assertDatabaseHas('platform_audit_logs', [
             'super_admin_id' => $this->superAdmin->id,
-            'action'         => 'suspend_tenant',
-            'tenant_id'      => $this->tenant1->id,
+            'action' => 'suspend_tenant',
+            'tenant_id' => $this->tenant1->id,
         ]);
     }
 
     /** @test */
     public function test_impersonation_generates_temporary_token_and_creates_audit_record(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
-            ->postJson('/api/v1/platform/tenants/' . $this->tenant1->id . '/impersonate');
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
+            ->postJson('/api/v1/platform/tenants/'.$this->tenant1->id.'/impersonate');
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -243,8 +250,8 @@ class PlatformSuperAdminTest extends TestCase
         // Verify audit log
         $this->assertDatabaseHas('platform_audit_logs', [
             'super_admin_id' => $this->superAdmin->id,
-            'action'         => 'impersonate_clinic_owner',
-            'tenant_id'      => $this->tenant1->id,
+            'action' => 'impersonate_clinic_owner',
+            'tenant_id' => $this->tenant1->id,
         ]);
 
         // Verify audit log model record count
@@ -260,39 +267,39 @@ class PlatformSuperAdminTest extends TestCase
     public function test_super_admin_can_access_me_and_logout_on_central_domain_and_platform_prefix(): void
     {
         // 1. GET /api/v1/platform/me
-        $resPlatformMe = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+        $resPlatformMe = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
             ->getJson('/api/v1/platform/me');
 
         $resPlatformMe->assertStatus(200);
         $resPlatformMe->assertJson([
             'user' => [
-                'id'             => $this->superAdmin->id,
-                'email'          => $this->superAdmin->email,
+                'id' => $this->superAdmin->id,
+                'email' => $this->superAdmin->email,
                 'is_super_admin' => true,
             ],
         ]);
 
         // 2. GET /api/v1/me (Global Central Domain Endpoint)
-        $resGlobalMe = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+        $resGlobalMe = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
             ->getJson('/api/v1/me');
 
         $resGlobalMe->assertStatus(200);
         $resGlobalMe->assertJson([
             'user' => [
-                'id'             => $this->superAdmin->id,
-                'email'          => $this->superAdmin->email,
+                'id' => $this->superAdmin->id,
+                'email' => $this->superAdmin->email,
                 'is_super_admin' => true,
             ],
         ]);
 
         // 3. POST /api/v1/platform/logout
-        $resPlatformLogout = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+        $resPlatformLogout = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
             ->postJson('/api/v1/platform/logout');
 
         $resPlatformLogout->assertStatus(200);
 
         // 4. POST /api/v1/logout
-        $resGlobalLogout = $this->withHeader('Authorization', 'Bearer ' . $this->superAdminToken)
+        $resGlobalLogout = $this->withHeader('Authorization', 'Bearer '.$this->superAdminToken)
             ->postJson('/api/v1/logout');
 
         $resGlobalLogout->assertStatus(200);
@@ -302,19 +309,19 @@ class PlatformSuperAdminTest extends TestCase
     public function test_non_super_admin_receives_403_on_platform_me(): void
     {
         $regularUser = User::create([
-            'name'           => 'Regular Central User',
-            'email'          => 'regular_me@platform.test',
-            'password'       => Hash::make('password'),
+            'name' => 'Regular Central User',
+            'email' => 'regular_me@platform.test',
+            'password' => Hash::make('password'),
             'is_super_admin' => false,
         ]);
         $regularToken = $regularUser->createToken('regular-token')->plainTextToken;
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $regularToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$regularToken)
             ->getJson('/api/v1/platform/me');
 
         $response->assertStatus(403);
         $response->assertJson([
-            'status'  => 'error',
+            'status' => 'error',
             'message' => 'غير مصرح لك بالوصول إلى لوحة التحكم المركزية للمنصة.',
         ]);
     }
@@ -331,4 +338,3 @@ class PlatformSuperAdminTest extends TestCase
         parent::tearDown();
     }
 }
-

@@ -29,9 +29,9 @@ class PlatformTenantStaffController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تحديث بيانات المستخدم وأدواره بنجاح',
-            'data'    => new PlatformTenantUserResource($user),
+            'data' => new PlatformTenantUserResource($user),
         ]);
     }
 
@@ -49,7 +49,7 @@ class PlatformTenantStaffController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم إعادة تعيين كلمة المرور بنجاح وإنهاء كافة الجلسات الحالية للمستخدم.',
         ]);
     }

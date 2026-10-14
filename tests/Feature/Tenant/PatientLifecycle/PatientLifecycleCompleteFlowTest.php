@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Tenant\PatientLifecycle;
 
 use App\Enums\AppointmentStatus;
-use App\Enums\ClinicMode;
 use App\Enums\EncounterStatus;
 use App\Enums\LiveQueueStatus;
 use App\Enums\PaymentStatus;
@@ -86,7 +85,6 @@ class PatientLifecycleCompleteFlowTest extends TestCase
 
         ClinicSetting::create([
             'branch_id' => $this->branchA->id,
-            'clinic_mode' => ClinicMode::POLYCLINIC->value,
             'queue_strategy' => 'hybrid',
             'estimated_time_per_visit' => 15,
         ]);

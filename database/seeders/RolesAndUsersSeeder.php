@@ -2,13 +2,13 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
 use App\Models\Branch;
-use App\Models\Tenant; // 👈 استدعاء موديل Tenant الخاص بالباكدج
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Database\Seeder; // 👈 استدعاء موديل Tenant الخاص بالباكدج
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolesAndUsersSeeder extends Seeder
 {

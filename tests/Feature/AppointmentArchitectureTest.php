@@ -2,26 +2,34 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Branch;
-use App\Models\Patient;
-use App\Models\Appointment;
-use App\Models\LiveQueue;
-use App\Models\Tenant;
 use App\Enums\AppointmentStatus;
+use App\Models\Appointment;
+use App\Models\Branch;
+use App\Models\LiveQueue;
+use App\Models\Patient;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Clinic\AppointmentService;
+use App\Services\Clinic\LiveQueueService;
 use App\Services\Clinic\PatientService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;      
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class AppointmentArchitectureTest extends TestCase
 {
     use RefreshDatabase;
 
     protected AppointmentService $appointmentService;
+
     protected PatientService $patientService;
+
     protected Branch $branch;
+
     protected ?Tenant $tenant = null;
 
     protected function setUp(): void
@@ -29,42 +37,42 @@ class AppointmentArchitectureTest extends TestCase
         parent::setUp();
 
         if (class_exists(Tenant::class)) {
-            $this->tenant = Tenant::create(['id' => 'tenant-' . Str::random(8)]);
+            $this->tenant = Tenant::create(['id' => 'tenant-'.Str::random(8)]);
             tenancy()->initialize($this->tenant);
         }
 
         $this->appointmentService = app(AppointmentService::class);
-        $this->patientService     = app(PatientService::class);
-        $this->branch             = Branch::factory()->create();
+        $this->patientService = app(PatientService::class);
+        $this->branch = Branch::factory()->create();
     }
 
     /** @test */
     public function test_normalizes_arabic_and_english_name_variations_during_resolution(): void
     {
         $arabicPatient = Patient::factory()->create([
-            'name'  => 'أحمد فؤاد',
+            'name' => 'أحمد فؤاد',
             'phone' => '01012345678',
         ]);
 
         $resolvedArabicId = $this->patientService->resolvePatient([
             'patient' => [
-                'name'  => 'احمد فؤاد ',
+                'name' => 'احمد فؤاد ',
                 'phone' => '010-1234-5678',
-            ]
+            ],
         ]);
 
         $this->assertEquals($arabicPatient->id, $resolvedArabicId);
 
         $englishPatient = Patient::factory()->create([
-            'name'  => 'MOHAMMED FOAUD',
+            'name' => 'MOHAMMED FOAUD',
             'phone' => '01099998888',
         ]);
 
         $resolvedEnglishId = $this->patientService->resolvePatient([
             'patient' => [
-                'name'  => 'mohammed foaud',
+                'name' => 'mohammed foaud',
                 'phone' => '01099998888',
-            ]
+            ],
         ]);
 
         $this->assertEquals($englishPatient->id, $resolvedEnglishId);
@@ -74,20 +82,20 @@ class AppointmentArchitectureTest extends TestCase
     public function test_manual_booking_with_existing_name_and_phone_does_not_duplicate_patient(): void
     {
         $patient = Patient::factory()->create([
-            'name'  => 'محمد فؤاد',
+            'name' => 'محمد فؤاد',
             'phone' => '01012345678',
         ]);
 
         $initialPatientCount = Patient::count();
 
         $appointment = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'appointment_time' => now()->addDay()->format('Y-m-d H:i:s'),
-            'type'             => 'check_up',
-            'patient'          => [
-                'name'  => 'محمد فؤاد ',
+            'type' => 'check_up',
+            'patient' => [
+                'name' => 'محمد فؤاد ',
                 'phone' => '010-1234-5678',
-            ]
+            ],
         ]);
 
         $this->assertEquals($initialPatientCount, Patient::count());
@@ -98,8 +106,8 @@ class AppointmentArchitectureTest extends TestCase
     public function test_reuses_existing_patient_when_exact_name_and_phone_are_typed_manually(): void
     {
         $existingPatient = Patient::factory()->create([
-            'name'           => 'Same Patient Name',
-            'phone'          => '01000000000',
+            'name' => 'Same Patient Name',
+            'phone' => '01000000000',
             'medical_number' => 'MRN-10001',
         ]);
 
@@ -108,9 +116,9 @@ class AppointmentArchitectureTest extends TestCase
         // Resolve patient by typing exact same name & phone
         $resolvedId = $this->patientService->resolvePatient([
             'patient' => [
-                'name'  => 'Same Patient Name',
+                'name' => 'Same Patient Name',
                 'phone' => '01000000000',
-            ]
+            ],
         ]);
 
         // Must return existing patient ID without creating a duplicate record or new MRN
@@ -123,16 +131,16 @@ class AppointmentArchitectureTest extends TestCase
     {
         $id1 = $this->patientService->resolvePatient([
             'patient' => [
-                'name'  => 'Child Sibling One',
+                'name' => 'Child Sibling One',
                 'phone' => '01000000000',
-            ]
+            ],
         ]);
 
         $id2 = $this->patientService->resolvePatient([
             'patient' => [
-                'name'  => 'Child Sibling Two',
+                'name' => 'Child Sibling Two',
                 'phone' => '01000000000',
-            ]
+            ],
         ]);
 
         $this->assertNotEquals($id1, $id2);
@@ -148,18 +156,18 @@ class AppointmentArchitectureTest extends TestCase
 
         $this->appointmentService->updateAppointment($apt->id, [
             'strategy' => 'UPDATE_CURRENT',
-            'patient'  => [
-                'name'  => 'Corrected Name',
+            'patient' => [
+                'name' => 'Corrected Name',
                 'phone' => '01099999999',
-                'age'   => 35,
-            ]
+                'age' => 35,
+            ],
         ]);
 
         $this->assertDatabaseHas('patients', [
-            'id'    => $patient->id,
-            'name'  => 'Corrected Name',
+            'id' => $patient->id,
+            'name' => 'Corrected Name',
             'phone' => '01099999999',
-            'age'   => 35,
+            'age' => 35,
         ]);
     }
 
@@ -172,12 +180,12 @@ class AppointmentArchitectureTest extends TestCase
         $apt = Appointment::factory()->create(['patient_id' => $patientA->id, 'branch_id' => $this->branch->id]);
 
         $this->appointmentService->updateAppointment($apt->id, [
-            'strategy'   => 'REASSIGN_EXISTING',
+            'strategy' => 'REASSIGN_EXISTING',
             'patient_id' => $patientB->id,
         ]);
 
         $this->assertDatabaseHas('appointments', [
-            'id'         => $apt->id,
+            'id' => $apt->id,
             'patient_id' => $patientB->id,
         ]);
     }
@@ -186,12 +194,12 @@ class AppointmentArchitectureTest extends TestCase
     public function test_auto_generates_medical_record_number_mrn_per_tenant(): void
     {
         $patient1 = $this->patientService->createPatient([
-            'name'  => 'First Patient',
+            'name' => 'First Patient',
             'phone' => '01011111111',
         ]);
 
         $patient2 = $this->patientService->createPatient([
-            'name'  => 'Second Patient',
+            'name' => 'Second Patient',
             'phone' => '01022222222',
         ]);
 
@@ -205,16 +213,16 @@ class AppointmentArchitectureTest extends TestCase
     public function test_searches_patients_by_name_phone_or_medical_record_number(): void
     {
         $patient = Patient::factory()->create([
-            'name'           => 'Unique Search Target',
-            'phone'          => '01077778888',
+            'name' => 'Unique Search Target',
+            'phone' => '01077778888',
             'medical_number' => 'MRN-99999',
         ]);
         DB::commit();
 
-        $results = $this->patientService->search(new \Illuminate\Http\Request(['q' => 'MRN-99999']));
+        $results = $this->patientService->search(new Request(['q' => 'MRN-99999']));
         $this->assertTrue($results->contains('id', $patient->id));
 
-        $resultsByName = $this->patientService->search(new \Illuminate\Http\Request(['q' => 'Unique Search Target']));
+        $resultsByName = $this->patientService->search(new Request(['q' => 'Unique Search Target']));
         $this->assertTrue($resultsByName->contains('id', $patient->id));
     }
 
@@ -223,7 +231,7 @@ class AppointmentArchitectureTest extends TestCase
     {
         $appointment = Appointment::factory()->create([
             'branch_id' => $this->branch->id,
-            'status'    => AppointmentStatus::COMPLETED->value,
+            'status' => AppointmentStatus::COMPLETED->value,
         ]);
 
         $this->expectException(\InvalidArgumentException::class);
@@ -235,13 +243,13 @@ class AppointmentArchitectureTest extends TestCase
     {
         $appointment = Appointment::factory()->create([
             'branch_id' => $this->branch->id,
-            'status'    => AppointmentStatus::CHECKED_IN->value,
+            'status' => AppointmentStatus::CHECKED_IN->value,
         ]);
 
         $queueItem = LiveQueue::factory()->create([
             'appointment_id' => $appointment->id,
-            'branch_id'      => $this->branch->id,
-            'patient_id'     => $appointment->patient_id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $appointment->patient_id,
         ]);
 
         $this->appointmentService->destroyAppointment($appointment->id);
@@ -253,36 +261,36 @@ class AppointmentArchitectureTest extends TestCase
     /** @test */
     public function test_creates_appointment_with_doctor_id_and_filters_queue_per_doctor(): void
     {
-        $doctor1 = \App\Models\User::factory()->create(['name' => 'Dr. Ahmed Ali']);
-        $doctor2 = \App\Models\User::factory()->create(['name' => 'Dr. Sara Mahmoud']);
+        $doctor1 = User::factory()->create(['name' => 'Dr. Ahmed Ali']);
+        $doctor2 = User::factory()->create(['name' => 'Dr. Sara Mahmoud']);
 
         // Doctor 1 Appointment & Check-In
         $appt1 = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
-            'doctor_id'        => $doctor1->id,
+            'branch_id' => $this->branch->id,
+            'doctor_id' => $doctor1->id,
             'appointment_time' => now()->addHour()->format('Y-m-d H:i:s'),
-            'type'             => 'check_up',
-            'patient'          => [
-                'name'  => 'Patient For Dr Ahmed',
+            'type' => 'check_up',
+            'patient' => [
+                'name' => 'Patient For Dr Ahmed',
                 'phone' => '01011112222',
-            ]
+            ],
         ]);
         $queue1 = $this->appointmentService->checkInAppointment($appt1->id);
 
         // Doctor 2 Appointment & Check-In
         $appt2 = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
-            'doctor_id'        => $doctor2->id,
+            'branch_id' => $this->branch->id,
+            'doctor_id' => $doctor2->id,
             'appointment_time' => now()->addHours(2)->format('Y-m-d H:i:s'),
-            'type'             => 'check_up',
-            'patient'          => [
-                'name'  => 'Patient For Dr Sara',
+            'type' => 'check_up',
+            'patient' => [
+                'name' => 'Patient For Dr Sara',
                 'phone' => '01033334444',
-            ]
+            ],
         ]);
         $queue2 = $this->appointmentService->checkInAppointment($appt2->id);
 
-        $liveQueueService = app(\App\Services\Clinic\LiveQueueService::class);
+        $liveQueueService = app(LiveQueueService::class);
 
         // Queue for Dr. Ahmed
         $doc1Queue = $liveQueueService->getQueueForBranch($this->branch->id, $doctor1->id);
@@ -303,22 +311,22 @@ class AppointmentArchitectureTest extends TestCase
     public function test_creates_appointment_and_persists_patient_age_and_gender(): void
     {
         $appointment = $this->appointmentService->createAppointment([
-            'branch_id'        => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'appointment_time' => now()->addDay()->format('Y-m-d H:i:s'),
-            'type'             => 'check_up',
-            'patient'          => [
-                'name'   => 'Patient With Demographics',
-                'phone'  => '01055556666',
-                'age'    => 28,
+            'type' => 'check_up',
+            'patient' => [
+                'name' => 'Patient With Demographics',
+                'phone' => '01055556666',
+                'age' => 28,
                 'gender' => 'male',
-            ]
+            ],
         ]);
 
         $this->assertDatabaseHas('patients', [
-            'id'     => $appointment->patient_id,
-            'name'   => 'Patient With Demographics',
-            'phone'  => '01055556666',
-            'age'    => 28,
+            'id' => $appointment->patient_id,
+            'name' => 'Patient With Demographics',
+            'phone' => '01055556666',
+            'age' => 28,
             'gender' => 'male',
         ]);
     }
@@ -327,23 +335,23 @@ class AppointmentArchitectureTest extends TestCase
     public function test_api_store_appointment_validates_and_persists_patient_age_and_gender(): void
     {
         $this->tenant->domains()->create(['domain' => 'tenant.test']);
-        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
 
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
         $user->assignRole('receptionist');
         $user->branches()->attach($this->branch->id);
 
         $response = $this->actingAs($user)->postJson('http://tenant.test/api/v1/appointments', [
-            'branch_id'        => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'appointment_time' => now()->addDay()->format('Y-m-d H:i:s'),
-            'type'             => 'check_up',
-            'status'           => 'booking',
-            'patient'          => [
-                'name'   => 'API Patient Age Gender',
-                'phone'  => '01077779999',
-                'age'    => 45,
+            'type' => 'check_up',
+            'status' => 'booking',
+            'patient' => [
+                'name' => 'API Patient Age Gender',
+                'phone' => '01077779999',
+                'age' => 45,
                 'gender' => 'female',
-            ]
+            ],
         ]);
 
         $response->assertStatus(201);
@@ -351,9 +359,9 @@ class AppointmentArchitectureTest extends TestCase
         $response->assertJsonPath('data.patient.gender', 'female');
 
         $this->assertDatabaseHas('patients', [
-            'name'   => 'API Patient Age Gender',
-            'phone'  => '01077779999',
-            'age'    => 45,
+            'name' => 'API Patient Age Gender',
+            'phone' => '01077779999',
+            'age' => 45,
             'gender' => 'female',
         ]);
     }
@@ -364,21 +372,21 @@ class AppointmentArchitectureTest extends TestCase
         $targetDate = now()->addDays(2)->format('Y-m-d');
 
         $appt1 = Appointment::factory()->create([
-            'branch_id'        => $this->branch->id,
-            'appointment_time' => \Carbon\Carbon::parse($targetDate . ' 14:00:00'),
-            'doctor_id'        => null,
+            'branch_id' => $this->branch->id,
+            'appointment_time' => Carbon::parse($targetDate.' 14:00:00'),
+            'doctor_id' => null,
         ]);
 
         $appt2 = Appointment::factory()->create([
-            'branch_id'        => $this->branch->id,
-            'appointment_time' => \Carbon\Carbon::parse($targetDate . ' 10:00:00'),
-            'doctor_id'        => null,
+            'branch_id' => $this->branch->id,
+            'appointment_time' => Carbon::parse($targetDate.' 10:00:00'),
+            'doctor_id' => null,
         ]);
 
         // Out of range appointment (different day)
         $apptOtherDay = Appointment::factory()->create([
-            'branch_id'        => $this->branch->id,
-            'appointment_time' => \Carbon\Carbon::parse($targetDate)->addDays(2)->setTime(10, 0, 0),
+            'branch_id' => $this->branch->id,
+            'appointment_time' => Carbon::parse($targetDate)->addDays(2)->setTime(10, 0, 0),
         ]);
 
         $appointments = $this->appointmentService->getAllAppointmentsForBranch(
@@ -392,4 +400,3 @@ class AppointmentArchitectureTest extends TestCase
         $this->assertFalse($appointments->contains('id', $apptOtherDay->id));
     }
 }
-

@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InvoiceItem extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'invoice_id',
@@ -24,8 +24,8 @@ class InvoiceItem extends Model
     {
         return [
             'unit_price' => 'decimal:2',
-            'quantity'   => 'integer',
-            'total'      => 'decimal:2',
+            'quantity' => 'integer',
+            'total' => 'decimal:2',
         ];
     }
 

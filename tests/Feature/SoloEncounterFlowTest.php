@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ClinicMode;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterType;
 use App\Enums\PaymentStatus;
@@ -60,7 +59,6 @@ class SoloEncounterFlowTest extends TestCase
 
         ClinicSetting::create([
             'branch_id' => $this->branch->id,
-            'clinic_mode' => ClinicMode::SOLO->value,
             'queue_strategy' => 'hybrid',
             'avg_appointment_duration' => 15,
             'vitals_config' => [

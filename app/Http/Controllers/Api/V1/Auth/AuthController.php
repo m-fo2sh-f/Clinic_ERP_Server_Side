@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,34 +16,34 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::attempt($credentials)) {
             return response()->json(['message' => 'بيانات الدخول غير صحيحة'], 401);
         }
 
         $user = Auth::user();
 
         // 👑 1. Super Admin Platform Access Bypass (Technical Directive 2)
-        if ((bool)$user->is_super_admin) {
+        if ((bool) $user->is_super_admin) {
             if ($request->hasSession()) {
                 $request->session()->regenerate();
             }
             $token = $user->createToken('platform-token')->plainTextToken;
 
             return response()->json([
-                'message'        => 'تم تسجيل دخول مدير المنصة بنجاح',
-                'token'          => $token,
+                'message' => 'تم تسجيل دخول مدير المنصة بنجاح',
+                'token' => $token,
                 'is_super_admin' => true,
-                'redirect'       => '/platform',
-                'tenant'         => null,
-                'user'           => [
-                    'id'             => $user->id,
-                    'name'           => $user->name,
-                    'email'          => $user->email,
+                'redirect' => '/platform',
+                'tenant' => null,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'is_super_admin' => true,
-                    'roles'          => ['super_admin'],
-                    'permissions'    => ['platform.manage'],
+                    'roles' => ['super_admin'],
+                    'permissions' => ['platform.manage'],
                 ],
-                'branches'       => [],
+                'branches' => [],
             ], 200);
         }
 
@@ -53,14 +54,15 @@ class AuthController extends Controller
 
         if ($currentTenantId) {
             $hasBranchInTenant = method_exists($user, 'branches') && $user->branches()->exists();
-            $isDirectMember    = !isset($user->tenant_id) || $user->tenant_id === $currentTenantId;
+            $isDirectMember = ! isset($user->tenant_id) || $user->tenant_id === $currentTenantId;
 
-            if (!$isDirectMember && !$hasBranchInTenant) {
+            if (! $isDirectMember && ! $hasBranchInTenant) {
                 Auth::logout();
+
                 return response()->json([
-                    'status'  => 'error',
-                    'code'    => 'TENANT_ACCESS_DENIED',
-                    'message' => 'هذا الحساب لا يمتلك صلاحية الدخول لهذه العيادة'
+                    'status' => 'error',
+                    'code' => 'TENANT_ACCESS_DENIED',
+                    'message' => 'هذا الحساب لا يمتلك صلاحية الدخول لهذه العيادة',
                 ], 403);
             }
         }
@@ -70,30 +72,29 @@ class AuthController extends Controller
         }
 
         // جلب فروع المستخدم في العيادة الحالية مع إعداداتها
-        $branches = method_exists($user, 'branches') 
+        $branches = method_exists($user, 'branches')
             ? $user->branches()->with('clinicSetting')->get(['branches.id', 'branches.name'])->map(function ($b) {
                 return [
-                    'id'            => $b->id,
-                    'name'          => $b->name,
-                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'id' => $b->id,
+                    'name' => $b->name,
                     'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
                 ];
             })
             : collect([]);
 
         // 🎯 2. لو المستخدم ملوش فروع مسجلة في هذه العيادة (مثل ندى في tenant-2) -> رفض الدخول
-        if ($branches->isEmpty() && !$user->hasRole('clinic_owner')) {
+        if ($branches->isEmpty() && ! $user->hasRole('clinic_owner')) {
             Auth::logout();
+
             return response()->json(['message' => 'الحساب غير مربوط بأي فرع في هذه العيادة'], 403);
         }
 
         // إذا كان المستخدم clinic_owner ولا يوجد له فرع مخصص في الجدول الوسيط، إرجاع كافة فروع العيادة
         if ($branches->isEmpty() && $user->hasRole('clinic_owner')) {
-            $branches = \App\Models\Branch::with('clinicSetting')->get(['id', 'name'])->map(function ($b) {
+            $branches = Branch::with('clinicSetting')->get(['id', 'name'])->map(function ($b) {
                 return [
-                    'id'            => $b->id,
-                    'name'          => $b->name,
-                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'id' => $b->id,
+                    'name' => $b->name,
                     'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
                 ];
             });
@@ -108,20 +109,20 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'تم تسجيل الدخول بنجاح',
-            'token'   => $token,
-            'tenant'  => tenant() ? [
-                'id'          => tenant('id'),
+            'token' => $token,
+            'tenant' => tenant() ? [
+                'id' => tenant('id'),
                 'clinic_name' => tenant('clinic_name') ?? tenant('id'),
             ] : null,
-            'user'    => [
-                'id'             => $user->id,
-                'name'           => $user->name,
-                'email'          => $user->email,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
                 'is_super_admin' => false,
-                'roles'          => $roles,
-                'permissions'    => $permissions,
+                'roles' => $roles,
+                'permissions' => $permissions,
             ],
-            'branches' => $branches
+            'branches' => $branches,
         ]);
     }
 
@@ -141,18 +142,18 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if ($user && (bool)$user->is_super_admin) {
+        if ($user && (bool) $user->is_super_admin) {
             return response()->json([
                 'tenant' => null,
                 'user' => [
-                    'id'             => $user->id,
-                    'name'           => $user->name,
-                    'email'          => $user->email,
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                     'is_super_admin' => true,
-                    'roles'          => ['super_admin'],
-                    'permissions'    => ['platform.manage'],
+                    'roles' => ['super_admin'],
+                    'permissions' => ['platform.manage'],
                 ],
-                'branches' => []
+                'branches' => [],
             ]);
         }
 
@@ -161,12 +162,11 @@ class AuthController extends Controller
             setPermissionsTeamId($currentTenantId);
         }
 
-        $branches = ($user && method_exists($user, 'branches')) 
+        $branches = ($user && method_exists($user, 'branches'))
             ? $user->branches()->with('clinicSetting')->get(['branches.id', 'branches.name'])->map(function ($b) {
                 return [
-                    'id'            => $b->id,
-                    'name'          => $b->name,
-                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'id' => $b->id,
+                    'name' => $b->name,
                     'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
                 ];
             })
@@ -174,11 +174,10 @@ class AuthController extends Controller
 
         // إذا كان المستخدم clinic_owner ولا يوجد له فرع مخصص في الجدول الوسيط، إرجاع كافة فروع العيادة
         if ($branches->isEmpty() && $user && $user->hasRole('clinic_owner')) {
-            $branches = \App\Models\Branch::with('clinicSetting')->get(['id', 'name'])->map(function ($b) {
+            $branches = Branch::with('clinicSetting')->get(['id', 'name'])->map(function ($b) {
                 return [
-                    'id'            => $b->id,
-                    'name'          => $b->name,
-                    'clinic_mode'   => $b->clinicSetting?->clinic_mode?->value ?? $b->clinicSetting?->clinic_mode ?? 'solo',
+                    'id' => $b->id,
+                    'name' => $b->name,
                     'vitals_config' => $b->clinicSetting?->vitals_config ?? [],
                 ];
             });
@@ -199,7 +198,7 @@ class AuthController extends Controller
                 'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
                 'permissions' => method_exists($user, 'getAllPermissions') ? $user->getAllPermissions()->pluck('name') : [],
             ] : null,
-            'branches' => $branches
+            'branches' => $branches,
         ]);
     }
 }

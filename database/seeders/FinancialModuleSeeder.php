@@ -16,34 +16,34 @@ class FinancialModuleSeeder extends Seeder
 
         $defaultServices = [
             [
-                'name'          => 'كشف استشاري',
-                'code'          => 'CONSULTATION',
+                'name' => 'كشف استشاري',
+                'code' => 'CONSULTATION',
                 'default_price' => 150.00,
-                'is_active'     => true,
+                'is_active' => true,
             ],
             [
-                'name'          => 'رسم قلب (ECG)',
-                'code'          => 'ECG',
+                'name' => 'رسم قلب (ECG)',
+                'code' => 'ECG',
                 'default_price' => 100.00,
-                'is_active'     => true,
+                'is_active' => true,
             ],
             [
-                'name'          => 'سونار باطني (Ultrasound)',
-                'code'          => 'ULTRASOUND',
+                'name' => 'سونار باطني (Ultrasound)',
+                'code' => 'ULTRASOUND',
                 'default_price' => 250.00,
-                'is_active'     => true,
+                'is_active' => true,
             ],
             [
-                'name'          => 'تحليل سكر عشوائي (Blood Glucose)',
-                'code'          => 'GLUCOSE',
+                'name' => 'تحليل سكر عشوائي (Blood Glucose)',
+                'code' => 'GLUCOSE',
                 'default_price' => 40.00,
-                'is_active'     => true,
+                'is_active' => true,
             ],
             [
-                'name'          => 'تضميد وغيار جرح (Wound Dressing)',
-                'code'          => 'WOUND_DRESS',
+                'name' => 'تضميد وغيار جرح (Wound Dressing)',
+                'code' => 'WOUND_DRESS',
                 'default_price' => 80.00,
-                'is_active'     => true,
+                'is_active' => true,
             ],
         ];
 
@@ -55,20 +55,20 @@ class FinancialModuleSeeder extends Seeder
                     $service = Service::firstOrCreate(
                         ['code' => $svcData['code']],
                         [
-                            'name'          => $svcData['name'],
+                            'name' => $svcData['name'],
                             'default_price' => $svcData['default_price'],
-                            'is_active'     => $svcData['is_active'],
+                            'is_active' => $svcData['is_active'],
                         ]
                     );
 
                     foreach ($branches as $branch) {
                         BranchService::firstOrCreate(
                             [
-                                'branch_id'  => $branch->id,
+                                'branch_id' => $branch->id,
                                 'service_id' => $service->id,
                             ],
                             [
-                                'price'        => $svcData['default_price'],
+                                'price' => $svcData['default_price'],
                                 'is_available' => true,
                             ]
                         );

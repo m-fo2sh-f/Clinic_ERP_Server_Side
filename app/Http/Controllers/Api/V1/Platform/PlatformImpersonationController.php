@@ -21,9 +21,9 @@ class PlatformImpersonationController extends Controller
         $result = $this->impersonationService->impersonateClinicOwner($id, $request->user(), $request);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم إنشاء جلسة الدخول المؤقتة بنجاح (صالحة لمدة 15 دقيقة)',
-            'data'    => $result,
+            'data' => $result,
         ]);
     }
 }

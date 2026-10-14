@@ -2,50 +2,58 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Tenant;
-use App\Models\User;
-use App\Models\Branch;
-use App\Models\Patient;
+use App\Enums\AppointmentStatus;
+use App\Enums\LiveQueueStatus;
 use App\Models\Appointment;
-use App\Models\LiveQueue;
+use App\Models\Branch;
 use App\Models\Drug;
+use App\Models\LiveQueue;
+use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
-use App\Enums\LiveQueueStatus;
-use App\Enums\AppointmentStatus;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Clinic\ConsultationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class ConsultationPrescriptionTest extends TestCase
 {
     use RefreshDatabase;
 
     protected Tenant $tenantA;
+
     protected Tenant $tenantB;
+
     protected Branch $branchA;
+
     protected User $doctorA;
+
     protected Patient $patientA;
+
     protected Appointment $appointmentA;
+
     protected LiveQueue $liveQueueA;
+
     protected Drug $drugPanadol;
+
     protected string $tokenA;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $tenantAId = 'clinic-rx-' . Str::random(6);
-        $tenantBId = 'clinic-rx-' . Str::random(6);
+        $tenantAId = 'clinic-rx-'.Str::random(6);
+        $tenantBId = 'clinic-rx-'.Str::random(6);
 
         // 1. Create Tenant A and Tenant B
         $this->tenantA = Tenant::create(['id' => $tenantAId]);
-        $this->tenantA->domains()->create(['domain' => $tenantAId . '.test']);
+        $this->tenantA->domains()->create(['domain' => $tenantAId.'.test']);
 
         $this->tenantB = Tenant::create(['id' => $tenantBId]);
-        $this->tenantB->domains()->create(['domain' => $tenantBId . '.test']);
+        $this->tenantB->domains()->create(['domain' => $tenantBId.'.test']);
 
         // 2. Setup Context in Tenant A
         tenancy()->initialize($this->tenantA);
@@ -58,47 +66,47 @@ class ConsultationPrescriptionTest extends TestCase
 
         $this->doctorA = User::factory()->create([
             'tenant_id' => $this->tenantA->id,
-            'email'     => 'doctor@' . $tenantAId . '.test',
+            'email' => 'doctor@'.$tenantAId.'.test',
         ]);
         $this->doctorA->assignRole('doctor');
         $this->doctorA->branches()->attach($this->branchA->id);
 
         $this->patientA = Patient::create([
-            'tenant_id'      => $this->tenantA->id,
-            'name'           => 'مريض العيادة أ',
-            'phone'          => '01011112222',
+            'tenant_id' => $this->tenantA->id,
+            'name' => 'مريض العيادة أ',
+            'phone' => '01011112222',
             'medical_number' => 'MRN-50001',
-            'age'            => 30,
-            'gender'         => 'male',
+            'age' => 30,
+            'gender' => 'male',
         ]);
 
         $this->appointmentA = Appointment::create([
-            'tenant_id'        => $this->tenantA->id,
-            'branch_id'        => $this->branchA->id,
-            'patient_id'       => $this->patientA->id,
-            'doctor_id'        => $this->doctorA->id,
+            'tenant_id' => $this->tenantA->id,
+            'branch_id' => $this->branchA->id,
+            'patient_id' => $this->patientA->id,
+            'doctor_id' => $this->doctorA->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::CHECKED_IN->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::CHECKED_IN->value,
         ]);
 
         $this->liveQueueA = LiveQueue::create([
-            'tenant_id'        => $this->tenantA->id,
-            'branch_id'        => $this->branchA->id,
-            'appointment_id'   => $this->appointmentA->id,
-            'patient_id'       => $this->patientA->id,
-            'doctor_id'        => $this->doctorA->id,
-            'queue_no'         => 1,
-            'status'           => LiveQueueStatus::UNDER_EXAMINATION,
-            'shift_date'       => now()->toDateString(),
-            'checked_in_at'    => now(),
+            'tenant_id' => $this->tenantA->id,
+            'branch_id' => $this->branchA->id,
+            'appointment_id' => $this->appointmentA->id,
+            'patient_id' => $this->patientA->id,
+            'doctor_id' => $this->doctorA->id,
+            'queue_no' => 1,
+            'status' => LiveQueueStatus::UNDER_EXAMINATION,
+            'shift_date' => now()->toDateString(),
+            'checked_in_at' => now(),
         ]);
 
         $this->drugPanadol = Drug::create([
-            'trade_name'        => 'Panadol Extra',
+            'trade_name' => 'Panadol Extra',
             'active_ingredient' => 'Paracetamol 500mg',
-            'price'             => 35.00,
-            'barcode'           => '6220000111122',
+            'price' => 35.00,
+            'barcode' => '6220000111122',
         ]);
 
         $this->tokenA = $this->doctorA->createToken('doc-token')->plainTextToken;
@@ -110,46 +118,46 @@ class ConsultationPrescriptionTest extends TestCase
     public function test_complete_consultation_creates_prescription_and_items_via_eloquent(): void
     {
         $payload = [
-            'live_queue_id'        => $this->liveQueueA->id,
-            'appointment_id'       => $this->appointmentA->id,
-            'patient_id'           => $this->patientA->id,
-            'branch_id'            => $this->branchA->id,
-            'chief_complaint'      => 'صداع مستمر وحمى خفيفة',
+            'live_queue_id' => $this->liveQueueA->id,
+            'appointment_id' => $this->appointmentA->id,
+            'patient_id' => $this->patientA->id,
+            'branch_id' => $this->branchA->id,
+            'chief_complaint' => 'صداع مستمر وحمى خفيفة',
             'examination_findings' => 'الحلق ملتهب قليلاً',
-            'diagnoses'            => ['نزلة برد حادة'],
-            'vitals'               => [
+            'diagnoses' => ['نزلة برد حادة'],
+            'vitals' => [
                 'temperature' => '38.2',
                 'blood_pressure' => '120/80',
             ],
-            'medications'          => [
+            'medications' => [
                 [
-                    'drug_id'      => $this->drugPanadol->id,
-                    'name'         => 'Panadol Extra',
-                    'dosage'       => 'قرص واحد',
-                    'frequency'    => 'كل 8 ساعات',
-                    'duration'     => '5 أيام',
+                    'drug_id' => $this->drugPanadol->id,
+                    'name' => 'Panadol Extra',
+                    'dosage' => 'قرص واحد',
+                    'frequency' => 'كل 8 ساعات',
+                    'duration' => '5 أيام',
                     'instructions' => 'بعد الأكل',
-                    'sort_order'   => 1,
+                    'sort_order' => 1,
                 ],
                 [
-                    'name'         => 'فيتامين سي فوار',
-                    'dosage'       => 'كيس فوار',
-                    'frequency'    => 'مرة يومياً',
-                    'duration'     => '10 أيام',
+                    'name' => 'فيتامين سي فوار',
+                    'dosage' => 'كيس فوار',
+                    'frequency' => 'مرة يومياً',
+                    'duration' => '10 أيام',
                     'instructions' => 'صباحاً على نصف كوب ماء',
-                    'sort_order'   => 2,
+                    'sort_order' => 2,
                 ],
             ],
-            'general_advice'       => 'الراحة التامة والإكثار من السوائل الدافئة',
+            'general_advice' => 'الراحة التامة والإكثار من السوائل الدافئة',
         ];
 
         $domain = $this->tenantA->domains()->first()->domain;
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->tokenA)
             ->postJson("http://{$domain}/api/v1/consultations/complete", $payload);
 
         $response->assertStatus(200);
         $response->assertJson([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Consultation completed successfully',
         ]);
 
@@ -191,20 +199,20 @@ class ConsultationPrescriptionTest extends TestCase
         $service = app(ConsultationService::class);
 
         $result = $service->completeConsultation([
-            'live_queue_id'   => $this->liveQueueA->id,
-            'appointment_id'  => $this->appointmentA->id,
-            'patient_id'      => $this->patientA->id,
-            'branch_id'       => $this->branchA->id,
+            'live_queue_id' => $this->liveQueueA->id,
+            'appointment_id' => $this->appointmentA->id,
+            'patient_id' => $this->patientA->id,
+            'branch_id' => $this->branchA->id,
             'chief_complaint' => 'شكوى خاصة بالعيادة أ',
-            'diagnoses'       => ['تشخيص أ'],
-            'medications'     => [
+            'diagnoses' => ['تشخيص أ'],
+            'medications' => [
                 [
-                    'name'        => 'دواء سري خاص بتينانت أ',
-                    'dose'        => '1 قرص',
-                    'frequency'   => 'يومياً',
-                    'duration'    => '7 أيام',
+                    'name' => 'دواء سري خاص بتينانت أ',
+                    'dose' => '1 قرص',
+                    'frequency' => 'يومياً',
+                    'duration' => '7 أيام',
                     'instruction' => 'سري للغاية',
-                ]
+                ],
             ],
         ]);
 
@@ -231,7 +239,7 @@ class ConsultationPrescriptionTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Tenant context missing for prescription.');
 
-        $prescriptionMock = new Prescription();
+        $prescriptionMock = new Prescription;
         $prescriptionMock->tenant_id = null;
 
         throw_if(

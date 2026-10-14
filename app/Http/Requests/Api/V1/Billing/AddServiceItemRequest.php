@@ -15,7 +15,7 @@ class AddServiceItemRequest extends FormRequest
     {
         return [
             'service_id' => ['required', 'string', 'exists:services,id'],
-            'quantity'   => ['nullable', 'integer', 'min:1'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -23,8 +23,8 @@ class AddServiceItemRequest extends FormRequest
     {
         return [
             'service_id.required' => 'يرجى اختيار الخدمة.',
-            'service_id.exists'   => 'الخدمة المختارة غير موجودة.',
-            'quantity.min'        => 'الكمية يجب أن تكون 1 على الأقل.',
+            'service_id.exists' => 'الخدمة المختارة غير موجودة.',
+            'quantity.min' => 'الكمية يجب أن تكون 1 على الأقل.',
         ];
     }
 }

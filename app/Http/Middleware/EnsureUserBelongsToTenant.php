@@ -14,10 +14,10 @@ class EnsureUserBelongsToTenant
         $user = $request->user();
 
         // لو الريكويست مش مسجل دخول، اتركه لـ auth:sanctum يتعامل معه
-        if (!$user) {
+        if (! $user) {
             return $next($request);
         }
-        
+
         // تجاهل التحقق إذا كان المستخدم هو super_admin
         if ((bool) ($user->is_super_admin ?? false)) {
             return $next($request);
@@ -25,7 +25,7 @@ class EnsureUserBelongsToTenant
 
         $currentTenantId = function_exists('tenant') ? tenant('id') : null;
 
-        if (!$currentTenantId) {
+        if (! $currentTenantId) {
             return $next($request);
         }
 
@@ -35,16 +35,16 @@ class EnsureUserBelongsToTenant
         // باقي الموظفين (أطباء واستقبال) لازم يكون عندهم فرع واحد على الأقل في هذه العيادة
         $hasBranchInTenant = method_exists($user, 'branches') && $user->branches()->exists();
 
-       if (!$isOwner && !$hasBranchInTenant) {
+        if (! $isOwner && ! $hasBranchInTenant) {
             // تسجيل خروج فوري لإنهاء الجلسة المسربة
             if (Auth::guard('web')->check()) {
                 Auth::guard('web')->logout();
             }
 
             return response()->json([
-                'status'  => 'error',
-                'code'    => 'TENANT_ACCESS_DENIED',
-                'message' => 'غير مصرح لك بالوصول لبيانات هذه العيادة، الحساب غير مربوط بأي فرع.'
+                'status' => 'error',
+                'code' => 'TENANT_ACCESS_DENIED',
+                'message' => 'غير مصرح لك بالوصول لبيانات هذه العيادة، الحساب غير مربوط بأي فرع.',
             ], 403);
         }
 

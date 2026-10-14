@@ -11,14 +11,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-use App\Models\Branch;
-
 #[Fillable(['name', 'email', 'password', 'tenant_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     protected string $guard_name = 'web';
 
@@ -35,6 +33,7 @@ class User extends Authenticatable
             'is_super_admin' => 'boolean',
         ];
     }
+
     public function branches()
     {
         return $this->belongsToMany(Branch::class);

@@ -2,9 +2,8 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -18,11 +17,11 @@ class NextPatientCalled implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public string $branchId;
+
     public array $patientData;
 
     /**
-     * @param string $branchId
-     * @param array  $patientData  ['queue_no', 'patient_name', 'doctor_name', 'room_name']
+     * @param  array  $patientData  ['queue_no', 'patient_name', 'doctor_name', 'room_name']
      */
     public function __construct(string $branchId, array $patientData)
     {
@@ -33,8 +32,8 @@ class NextPatientCalled implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('live-queue.' . $this->branchId),
-            
+            new PrivateChannel('live-queue.'.$this->branchId),
+
         ];
     }
 

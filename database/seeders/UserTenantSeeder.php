@@ -24,9 +24,9 @@ class UserTenantSeeder extends Seeder
         $superAdmin = User::updateOrCreate(
             ['email' => 'admin@platform.test'],
             [
-                'name'           => 'Platform Super Admin',
-                'tenant_id'      => null,
-                'password'       => $universalPasswordHash,
+                'name' => 'Platform Super Admin',
+                'tenant_id' => null,
+                'password' => $universalPasswordHash,
                 'is_super_admin' => true,
             ]
         );
@@ -54,10 +54,10 @@ class UserTenantSeeder extends Seeder
         $tenant1 = Tenant::firstOrCreate(
             ['id' => 'tenant-1'],
             [
-                'clinic_name'    => 'مجموعة عيادات النور (Clinic A - Polyclinic)',
-                'owner_email'    => 'dr.ahmed@clinica.test',
-                'is_active'      => true,
-                'admin_name'     => 'د. أحمد علي (Dr. Ahmed Ali)',
+                'clinic_name' => 'مجموعة عيادات النور (Clinic A - Polyclinic)',
+                'owner_email' => 'dr.ahmed@clinica.test',
+                'is_active' => true,
+                'admin_name' => 'د. أحمد علي (Dr. Ahmed Ali)',
                 'admin_password' => $universalPasswordPlain,
             ]
         );
@@ -68,7 +68,7 @@ class UserTenantSeeder extends Seeder
         $assignDomain($tenant1, 'clinic1.localhost');
 
         $tenant1->run(function () {
-            (new TenantDatabaseSeeder())->run();
+            (new TenantDatabaseSeeder)->run();
         });
 
         // =========================================================================
@@ -80,10 +80,10 @@ class UserTenantSeeder extends Seeder
         $tenant2 = Tenant::firstOrCreate(
             ['id' => 'tenant-2'],
             [
-                'clinic_name'    => 'مستشفى الأمل (Clinic B - Dual Doctor)',
-                'owner_email'    => 'dr.tarek@clinicb.test',
-                'is_active'      => true,
-                'admin_name'     => 'د. طارق خليل (Dr. Tarek)',
+                'clinic_name' => 'مستشفى الأمل (Clinic B - Dual Doctor)',
+                'owner_email' => 'dr.tarek@clinicb.test',
+                'is_active' => true,
+                'admin_name' => 'د. طارق خليل (Dr. Tarek)',
                 'admin_password' => $universalPasswordPlain,
             ]
         );
@@ -94,34 +94,31 @@ class UserTenantSeeder extends Seeder
         $assignDomain($tenant2, 'clinic2.localhost');
 
         $tenant2->run(function () {
-            (new TenantDatabaseSeeder())->run();
+            (new TenantDatabaseSeeder)->run();
         });
 
         // =========================================================================
-        // 🏥 3. TENANT 3: Clinic C (Solo Doctor Walk-In)
-        // - Mode: solo
+        // 🏥 3. TENANT 3: Clinic C (Zayed Branch)
         // - 1 Single Branch: Main Branch (فرع العيادة الرئيسي)
-        // - 1 Doctor only, dynamic vitals, instant checkout, no reception/cashier
+        // - 1 Doctor, 1 Receptionist
         // =========================================================================
         $tenant3 = Tenant::firstOrCreate(
             ['id' => 'tenant-3'],
             [
-                'clinic_name'    => 'عيادة د. شريف (Clinic C - Solo Doctor)',
-                'owner_email'    => 'dr.sherif@solo.test',
-                'is_active'      => true,
-                'admin_name'     => 'د. شريف عبد المنعم (Dr. Sherif)',
+                'clinic_name' => 'عيادة الشيخ زايد (Clinic C - Zayed Branch)',
+                'owner_email' => 'dr.sherif@solo.test',
+                'is_active' => true,
+                'admin_name' => 'د. شريف عبد المنعم (Dr. Sherif)',
                 'admin_password' => $universalPasswordPlain,
             ]
         );
         $tenant3->is_active = true;
         $tenant3->save();
         $assignDomain($tenant3, 'clinic3.my-saas.test');
-        $assignDomain($tenant3, 'solo.my-saas.test');
         $assignDomain($tenant3, 'clinic3.localhost');
-        $assignDomain($tenant3, 'solo.localhost');
 
         $tenant3->run(function () {
-            (new TenantDatabaseSeeder())->run();
+            (new TenantDatabaseSeeder)->run();
         });
 
         // =========================================================================
@@ -165,11 +162,12 @@ class UserTenantSeeder extends Seeder
             );
 
             $this->command->newLine();
-            $this->command->warn('🏥 [CLINIC C (tenant-3) — Solo Doctor Walk-In]');
+            $this->command->warn('🏥 [CLINIC C (tenant-3) — Zayed Branch]');
             $this->command->table(
                 ['Name', 'Email', 'Password', 'Roles', 'Assigned Branches'],
                 [
-                    ['د. شريف عبد المنعم (Dr. Sherif)', 'dr.sherif@solo.test', '12345678', 'clinic_owner, doctor', 'Main Branch (Single Branch)'],
+                    ['د. شريف عبد المنعم (Dr. Sherif)', 'dr.sherif@solo.test', '12345678', 'clinic_owner, doctor', 'Main Branch (الفرع الرئيسي)'],
+                    ['سارة (Receptionist Zayed)', 'reception.zayed@clinicc.test', '12345678', 'receptionist', 'Main Branch (الفرع الرئيسي)'],
                 ]
             );
             $this->command->info('================================================================================');

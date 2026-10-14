@@ -2,21 +2,20 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Tenant;
-use App\Models\User;
-use App\Models\Branch;
-use App\Models\Patient;
+use App\Enums\AppointmentStatus;
+use App\Enums\LiveQueueStatus;
+use App\Enums\PaymentStatus;
+use App\Events\InvoicePaid;
+use App\Events\InvoiceReadyForPayment;
 use App\Models\Appointment;
-use App\Models\LiveQueue;
-use App\Models\Service;
+use App\Models\Branch;
 use App\Models\BranchService;
 use App\Models\Invoice;
-use App\Enums\LiveQueueStatus;
-use App\Enums\AppointmentStatus;
-use App\Enums\PaymentStatus;
-use App\Events\InvoiceReadyForPayment;
-use App\Events\InvoicePaid;
+use App\Models\LiveQueue;
+use App\Models\Patient;
+use App\Models\Service;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Clinic\AppointmentService;
 use App\Services\Clinic\BillingService;
 use App\Services\Clinic\ConsultationService;
@@ -24,29 +23,38 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class BillingLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 
     protected Tenant $tenant;
+
     protected Branch $branch;
+
     protected User $doctor;
+
     protected User $receptionist;
+
     protected Patient $patient;
+
     protected Service $consultationService;
+
     protected Service $ecgService;
+
     protected BillingService $billingService;
+
     protected AppointmentService $appointmentService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $tenantId = 'clinic-lifecycle-' . Str::random(6);
+        $tenantId = 'clinic-lifecycle-'.Str::random(6);
 
         $this->tenant = Tenant::create(['id' => $tenantId]);
-        $this->tenant->domains()->create(['domain' => $tenantId . '.test']);
+        $this->tenant->domains()->create(['domain' => $tenantId.'.test']);
         tenancy()->initialize($this->tenant);
         setPermissionsTeamId($this->tenant->id);
 
@@ -68,42 +76,42 @@ class BillingLifecycleTest extends TestCase
         $this->receptionist->branches()->attach($this->branch->id);
 
         $this->patient = Patient::create([
-            'name'           => 'مريض تجربة الدورة',
-            'phone'          => '01011112222',
+            'name' => 'مريض تجربة الدورة',
+            'phone' => '01011112222',
             'medical_number' => 'MRN-LC-001',
-            'age'            => 30,
-            'gender'         => 'male',
+            'age' => 30,
+            'gender' => 'male',
         ]);
 
         $this->consultationService = Service::create([
-            'name'          => 'كشف استشاري',
-            'code'          => 'CONSULTATION',
+            'name' => 'كشف استشاري',
+            'code' => 'CONSULTATION',
             'default_price' => 150.00,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         BranchService::create([
-            'branch_id'    => $this->branch->id,
-            'service_id'   => $this->consultationService->id,
-            'price'        => 150.00,
+            'branch_id' => $this->branch->id,
+            'service_id' => $this->consultationService->id,
+            'price' => 150.00,
             'is_available' => true,
         ]);
 
         $this->ecgService = Service::create([
-            'name'          => 'رسم قلب (ECG)',
-            'code'          => 'ECG',
+            'name' => 'رسم قلب (ECG)',
+            'code' => 'ECG',
             'default_price' => 100.00,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         BranchService::create([
-            'branch_id'    => $this->branch->id,
-            'service_id'   => $this->ecgService->id,
-            'price'        => 100.00,
+            'branch_id' => $this->branch->id,
+            'service_id' => $this->ecgService->id,
+            'price' => 100.00,
             'is_available' => true,
         ]);
 
-        $this->billingService     = app(BillingService::class);
+        $this->billingService = app(BillingService::class);
         $this->appointmentService = app(AppointmentService::class);
     }
 
@@ -114,27 +122,27 @@ class BillingLifecycleTest extends TestCase
     private function createCheckedInAppointment(): array
     {
         $appointment = Appointment::create([
-            'tenant_id'        => $this->tenant->id,
-            'branch_id'        => $this->branch->id,
-            'patient_id'       => $this->patient->id,
-            'doctor_id'        => $this->doctor->id,
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branch->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
             'appointment_time' => now(),
-            'type'             => 'check_up',
-            'status'           => AppointmentStatus::CHECKED_IN->value,
+            'type' => 'check_up',
+            'status' => AppointmentStatus::CHECKED_IN->value,
         ]);
 
         $invoice = $this->billingService->createInvoiceForAppointment($appointment);
 
         $queueItem = LiveQueue::create([
-            'tenant_id'      => $this->tenant->id,
-            'branch_id'      => $this->branch->id,
+            'tenant_id' => $this->tenant->id,
+            'branch_id' => $this->branch->id,
             'appointment_id' => $appointment->id,
-            'patient_id'     => $this->patient->id,
-            'doctor_id'      => $this->doctor->id,
-            'status'         => LiveQueueStatus::WAITING->value,
-            'queue_no'       => 1,
-            'shift_date'     => now()->toDateString(),
-            'checked_in_at'  => now(),
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'status' => LiveQueueStatus::WAITING->value,
+            'queue_no' => 1,
+            'shift_date' => now()->toDateString(),
+            'checked_in_at' => now(),
         ]);
 
         return [$appointment, $invoice, $queueItem];
@@ -216,19 +224,19 @@ class BillingLifecycleTest extends TestCase
         $this->actingAs($this->doctor);
 
         $consultationService->completeConsultation([
-            'live_queue_id'        => $queueItem->id,
-            'appointment_id'       => $appointment->id,
-            'patient_id'           => $this->patient->id,
-            'chief_complaint'      => 'ألم في الصدر',
-            'diagnoses'            => [['code' => 'I20', 'name' => 'Angina Pectoris']],
+            'live_queue_id' => $queueItem->id,
+            'appointment_id' => $appointment->id,
+            'patient_id' => $this->patient->id,
+            'chief_complaint' => 'ألم في الصدر',
+            'diagnoses' => [['code' => 'I20', 'name' => 'Angina Pectoris']],
             'examination_findings' => 'Normal heart sounds, no murmurs',
-            'vitals'               => ['bp' => '120/80', 'pulse' => '72', 'temp' => '37.0'],
-            'medications'          => [
+            'vitals' => ['bp' => '120/80', 'pulse' => '72', 'temp' => '37.0'],
+            'medications' => [
                 [
-                    'name'      => 'Aspirin',
-                    'dosage'    => '100mg',
+                    'name' => 'Aspirin',
+                    'dosage' => '100mg',
                     'frequency' => 'Once daily',
-                    'duration'  => '30 days',
+                    'duration' => '30 days',
                 ],
             ],
         ]);

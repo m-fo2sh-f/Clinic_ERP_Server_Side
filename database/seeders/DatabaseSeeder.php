@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,11 +14,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 👑 GLOBAL PLATFORM SUPER ADMIN
-        \App\Models\User::updateOrCreate(
+        User::updateOrCreate(
             ['email' => 'admin@platform.test'],
             [
                 'name' => 'Platform Super Admin',
-                'password' => \Illuminate\Support\Facades\Hash::make('12345678'),
+                'password' => Hash::make('12345678'),
                 'is_super_admin' => true,
             ]
         );

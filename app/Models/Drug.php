@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Drug extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory, HasUuids;
 
     /**
      * Global drugs catalog — shared across all tenants.
@@ -68,7 +68,7 @@ class Drug extends Model
         }
 
         return $query->whereRaw(
-            "MATCH(trade_name, active_ingredient, barcode, company) AGAINST(? IN BOOLEAN MODE)",
+            'MATCH(trade_name, active_ingredient, barcode, company) AGAINST(? IN BOOLEAN MODE)',
             [$booleanQuery]
         );
     }

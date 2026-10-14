@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Stancl\JobPipeline\JobPipeline;
 use Stancl\Tenancy\Events;
+use Stancl\Tenancy\Events\TenancyEnded;
+use Stancl\Tenancy\Events\TenancyInitialized;
 use Stancl\Tenancy\Jobs;
 use Stancl\Tenancy\Listeners;
 use Stancl\Tenancy\Middleware;
@@ -64,9 +67,9 @@ class TenancyServiceProvider extends ServiceProvider
 
             // Tenancy events
             Events\InitializingTenancy::class => [],
-            Events\TenancyInitialized::class => [
+            TenancyInitialized::class => [
                 Listeners\BootstrapTenancy::class,
-                function (Events\TenancyInitialized $event) {
+                function (TenancyInitialized $event) {
                     if (function_exists('setPermissionsTeamId')) {
                         setPermissionsTeamId($event->tenancy->tenant->getTenantKey());
                     }
@@ -74,9 +77,9 @@ class TenancyServiceProvider extends ServiceProvider
             ],
 
             Events\EndingTenancy::class => [],
-            Events\TenancyEnded::class => [
+            TenancyEnded::class => [
                 Listeners\RevertToCentralContext::class,
-                function (Events\TenancyEnded $event) {
+                function (TenancyEnded $event) {
                     if (function_exists('setPermissionsTeamId')) {
                         setPermissionsTeamId(null);
                     }
@@ -108,13 +111,13 @@ class TenancyServiceProvider extends ServiceProvider
         $this->bootEvents();
         $this->mapRoutes();
 
-        Event::listen(\Stancl\Tenancy\Events\TenancyInitialized::class, function ($event) {
+        Event::listen(TenancyInitialized::class, function ($event) {
             if (function_exists('setPermissionsTeamId')) {
                 setPermissionsTeamId($event->tenancy->tenant->getTenantKey());
             }
         });
 
-        Event::listen(\Stancl\Tenancy\Events\TenancyEnded::class, function () {
+        Event::listen(TenancyEnded::class, function () {
             if (function_exists('setPermissionsTeamId')) {
                 setPermissionsTeamId(null);
             }
@@ -160,7 +163,7 @@ class TenancyServiceProvider extends ServiceProvider
         ];
 
         foreach (array_reverse($tenancyMiddleware) as $middleware) {
-            $this->app[\Illuminate\Contracts\Http\Kernel::class]->prependToMiddlewarePriority($middleware);
+            $this->app[Kernel::class]->prependToMiddlewarePriority($middleware);
         }
     }
 }

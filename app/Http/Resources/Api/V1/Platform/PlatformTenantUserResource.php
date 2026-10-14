@@ -15,7 +15,7 @@ class PlatformTenantUserResource extends JsonResource
     public function toArray(Request $request): array
     {
         $createdAt = $this->formatted_created_at ?? null;
-        if (!$createdAt) {
+        if (! $createdAt) {
             try {
                 $createdAt = $this->created_at?->toIso8601String();
             } catch (\Throwable) {
@@ -24,11 +24,11 @@ class PlatformTenantUserResource extends JsonResource
         }
 
         return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'email'      => $this->email,
-            'roles'      => $this->tenant_roles ?? [],
-            'branches'   => $this->tenant_branches ?? [],
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'roles' => $this->tenant_roles ?? [],
+            'branches' => $this->tenant_branches ?? [],
             'branch_ids' => $this->tenant_branch_ids ?? [],
             'created_at' => $createdAt,
         ];

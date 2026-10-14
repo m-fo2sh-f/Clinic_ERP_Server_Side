@@ -30,9 +30,9 @@ class PlatformTenantController extends Controller
         );
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم إنشاء وتجهيز العيادة وقاعدة بياناتها بنجاح',
-            'data'    => new PlatformTenantDetailResource($tenant),
+            'data' => new PlatformTenantDetailResource($tenant),
         ], 201);
     }
 
@@ -51,12 +51,12 @@ class PlatformTenantController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => PlatformTenantListResource::collection($tenants),
-            'meta'   => [
+            'data' => PlatformTenantListResource::collection($tenants),
+            'meta' => [
                 'current_page' => $tenants->currentPage(),
-                'last_page'    => $tenants->lastPage(),
-                'per_page'     => $tenants->perPage(),
-                'total'        => $tenants->total(),
+                'last_page' => $tenants->lastPage(),
+                'per_page' => $tenants->perPage(),
+                'total' => $tenants->total(),
             ],
         ]);
     }
@@ -70,7 +70,7 @@ class PlatformTenantController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => new PlatformTenantDetailResource($tenant),
+            'data' => new PlatformTenantDetailResource($tenant),
         ]);
     }
 
@@ -84,12 +84,12 @@ class PlatformTenantController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => PlatformTenantUserResource::collection($users),
-            'meta'   => [
+            'data' => PlatformTenantUserResource::collection($users),
+            'meta' => [
                 'current_page' => $users->currentPage(),
-                'last_page'    => $users->lastPage(),
-                'per_page'     => $users->perPage(),
-                'total'        => $users->total(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
             ],
         ]);
     }
@@ -103,9 +103,9 @@ class PlatformTenantController extends Controller
         $tenant = $this->tenantService->toggleStatus($id, $isActive, $request->user(), $request);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => $isActive ? 'تم تفعيل العيادة بنجاح' : 'تم إيقاف العيادة بنجاح',
-            'data'    => new PlatformTenantDetailResource($tenant),
+            'data' => new PlatformTenantDetailResource($tenant),
         ]);
     }
 
@@ -116,15 +116,15 @@ class PlatformTenantController extends Controller
     {
         $validated = $request->validate([
             'clinic_name' => 'nullable|string|max:255',
-            'is_active'   => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $tenant = $this->tenantService->updateTenant($id, $validated, $request->user(), $request);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم تحديث بيانات العيادة بنجاح',
-            'data'    => new PlatformTenantDetailResource($tenant),
+            'data' => new PlatformTenantDetailResource($tenant),
         ]);
     }
 
@@ -136,7 +136,7 @@ class PlatformTenantController extends Controller
         $this->tenantService->deleteTenant($id, $request->user(), $request);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'تم حذف العيادة وقاعدة بياناتها بنجاح',
         ]);
     }

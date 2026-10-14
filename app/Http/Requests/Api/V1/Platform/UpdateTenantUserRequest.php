@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Api\V1\Platform;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateTenantUserRequest extends FormRequest
 {
@@ -18,7 +18,7 @@ class UpdateTenantUserRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -26,11 +26,11 @@ class UpdateTenantUserRequest extends FormRequest
         $tenantId = $this->route('tenantId');
 
         return [
-            'name'         => ['required', 'string', 'max:255'],
-            'email'        => ['required', 'email', 'max:255'],
-            'roles'        => ['required', 'array', 'min:1'],
-            'roles.*'      => ['required', 'string'],
-            'branch_ids'   => ['required', 'array', 'min:1'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['required', 'string'],
+            'branch_ids' => ['required', 'array', 'min:1'],
             'branch_ids.*' => ['required'],
         ];
     }

@@ -2,20 +2,23 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use App\Models\Branch;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\Branch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class CrossTenantSecurityTest extends TestCase
 {
     use RefreshDatabase;
 
     protected Tenant $tenantA;
+
     protected Tenant $tenantB;
+
     protected User $doctorA;
+
     protected string $tokenA;
 
     protected function setUp(): void
@@ -38,7 +41,7 @@ class CrossTenantSecurityTest extends TestCase
         // 3. إنشاء Doctor A ينتمي حصرياً وتنظيمياً لـ Tenant A فقط
         $this->doctorA = User::factory()->create([
             'tenant_id' => 'tenant-a',
-            'email'     => 'doctorA@tenant-a.test',
+            'email' => 'doctorA@tenant-a.test',
         ]);
         setPermissionsTeamId($this->tenantA->id);
         $this->doctorA->assignRole('doctor');
@@ -56,19 +59,19 @@ class CrossTenantSecurityTest extends TestCase
     public function test_prevents_user_from_accessing_another_tenant_data_with_valid_sanctum_token(): void
     {
         // 5. إرسال طلب من Doctor A إلى Endpoint يخص Tenant B عبر النطاق (tenant-b.test)
-        $crossTenantResponse = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
+        $crossTenantResponse = $this->withHeader('Authorization', 'Bearer '.$this->tokenA)
             ->getJson('http://tenant-b.test/api/v1/patients');
 
         // 6. التحقق من رد الرفض 403 Forbidden مع الكود المخصص TENANT_ACCESS_DENIED
         $crossTenantResponse->assertStatus(403);
         $crossTenantResponse->assertJson([
-            'status'  => 'error',
-            'code'    => 'TENANT_ACCESS_DENIED',
+            'status' => 'error',
+            'code' => 'TENANT_ACCESS_DENIED',
             'message' => 'غير مصرح لك بالوصول لبيانات هذه العيادة.',
         ]);
 
         // 7. إرسال نفس الطلب بنفس التوكين إلى Endpoint يخص Tenant A (tenant-a.test)
-        $validTenantResponse = $this->withHeader('Authorization', 'Bearer ' . $this->tokenA)
+        $validTenantResponse = $this->withHeader('Authorization', 'Bearer '.$this->tokenA)
             ->getJson('http://tenant-a.test/api/v1/patients');
 
         // 8. التحقق من النجاح 200 OK
@@ -101,7 +104,7 @@ class CrossTenantSecurityTest extends TestCase
         tenancy()->initialize($this->tenantA);
         $branchUser = User::factory()->create([
             'tenant_id' => null,
-            'email'     => 'nurseA@tenant-a.test',
+            'email' => 'nurseA@tenant-a.test',
         ]);
         $branchA = Branch::firstOrCreate(['tenant_id' => 'tenant-a', 'name' => 'فرع التمريض']);
         $branchUser->branches()->attach($branchA->id);
@@ -112,17 +115,17 @@ class CrossTenantSecurityTest extends TestCase
         tenancy()->end();
 
         // 2. الوصول لبيانات Tenant A مسموح 200 OK
-        $validResponse = $this->withHeader('Authorization', 'Bearer ' . $nurseToken)
+        $validResponse = $this->withHeader('Authorization', 'Bearer '.$nurseToken)
             ->getJson('http://tenant-a.test/api/v1/patients');
         $validResponse->assertStatus(200);
 
         // 3. محاولة استخدام نفس التوكين للوصول لـ Tenant B تُرفض 403
-        $crossResponse = $this->withHeader('Authorization', 'Bearer ' . $nurseToken)
+        $crossResponse = $this->withHeader('Authorization', 'Bearer '.$nurseToken)
             ->getJson('http://tenant-b.test/api/v1/patients');
         $crossResponse->assertStatus(403);
         $crossResponse->assertJson([
             'status' => 'error',
-            'code'   => 'TENANT_ACCESS_DENIED',
+            'code' => 'TENANT_ACCESS_DENIED',
         ]);
     }
 
@@ -138,14 +141,14 @@ class CrossTenantSecurityTest extends TestCase
     {
         // محاولة تسجيل دخول مستخدم تابع لـ Tenant A في نطاق Tenant B
         $response = $this->postJson('http://tenant-b.test/api/v1/login', [
-            'email'    => 'doctorA@tenant-a.test',
+            'email' => 'doctorA@tenant-a.test',
             'password' => 'password',
         ]);
 
         $response->assertStatus(403);
         $response->assertJson([
-            'status'  => 'error',
-            'code'    => 'TENANT_ACCESS_DENIED',
+            'status' => 'error',
+            'code' => 'TENANT_ACCESS_DENIED',
         ]);
     }
 }

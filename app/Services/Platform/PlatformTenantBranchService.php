@@ -57,7 +57,7 @@ class PlatformTenantBranchService
 
             ClinicSetting::firstOrCreate(
                 ['branch_id' => $branch->id],
-                ['clinic_mode' => 'solo']
+                ['queue_strategy' => 'hybrid']
             );
 
             PlatformAuditLog::create([

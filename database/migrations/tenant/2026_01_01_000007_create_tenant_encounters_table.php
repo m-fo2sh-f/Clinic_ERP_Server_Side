@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignUuid('patient_id')->constrained('patients')->cascadeOnDelete();
             $table->foreignId('doctor_id')->constrained('users')->cascadeOnDelete();
-            
+
             // Decoupled linkage: Nullable for Solo walk-ins; references appointment in polyclinic
             $table->foreignUuid('appointment_id')->nullable()->constrained('appointments')->nullOnDelete();
 

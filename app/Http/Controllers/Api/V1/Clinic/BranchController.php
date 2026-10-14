@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\V1\Clinic;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class BranchController extends Controller
 {
@@ -17,8 +17,8 @@ class BranchController extends Controller
         $this->authorizeBranchAccess($request->user(), $branchId);
 
         $doctors = User::whereHas('roles', function ($q) {
-                $q->whereIn('name', ['doctor', 'clinic_owner']);
-            })
+            $q->whereIn('name', ['doctor', 'clinic_owner']);
+        })
             ->whereHas('branches', function ($q) use ($branchId) {
                 $q->where('branches.id', $branchId);
             })
@@ -27,7 +27,7 @@ class BranchController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $doctors,
+            'data' => $doctors,
         ]);
     }
 }

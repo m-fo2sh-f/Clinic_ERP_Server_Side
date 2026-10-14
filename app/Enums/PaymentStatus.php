@@ -4,10 +4,10 @@ namespace App\Enums;
 
 enum PaymentStatus: string
 {
-    case UNPAID         = 'unpaid';
+    case UNPAID = 'unpaid';
     case PARTIALLY_PAID = 'partially_paid';
-    case PAID           = 'paid';
-    case REFUNDED       = 'refunded';
+    case PAID = 'paid';
+    case REFUNDED = 'refunded';
 
     /**
      * Get all values.

@@ -3,14 +3,14 @@
 namespace App\Models;
 
 use App\Enums\PaymentMethod;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payment extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'invoice_id',
@@ -24,9 +24,9 @@ class Payment extends Model
     protected function casts(): array
     {
         return [
-            'amount'         => 'decimal:2',
+            'amount' => 'decimal:2',
             'payment_method' => PaymentMethod::class,
-            'paid_at'        => 'datetime',
+            'paid_at' => 'datetime',
         ];
     }
 
