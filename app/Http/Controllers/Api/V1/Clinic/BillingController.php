@@ -25,7 +25,7 @@ class BillingController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $request->query('branch_id') ?: $request->header('X-Branch-ID');
         if (!$branchId) {
             return response()->json(['status' => 'error', 'message' => 'branch_id is required'], 422);
         }
@@ -53,7 +53,7 @@ class BillingController extends Controller
      */
     public function pending(Request $request): JsonResponse
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $request->query('branch_id') ?: $request->header('X-Branch-ID');
         if (!$branchId) {
             return response()->json(['status' => 'error', 'message' => 'branch_id is required'], 422);
         }
@@ -74,7 +74,7 @@ class BillingController extends Controller
      */
     public function services(Request $request): JsonResponse
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $request->query('branch_id') ?: $request->header('X-Branch-ID');
         if (!$branchId) {
             return response()->json(['status' => 'error', 'message' => 'branch_id is required'], 422);
         }
