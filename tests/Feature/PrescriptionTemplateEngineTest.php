@@ -104,7 +104,7 @@ class PrescriptionTemplateEngineTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.mode', 'builtin')
             ->assertJsonPath('data.paper_size', 'A5')
-            ->assertJsonPath('data.template_id', 'internal_medicine')
+            ->assertJsonPath('data.template_id', 'egyptian_clinic')
             ->assertJsonPath('data.is_doctor_override', false);
     }
 
@@ -214,7 +214,7 @@ class PrescriptionTemplateEngineTest extends TestCase
         // Verify that the branch setting is NOT modified
         tenancy()->initialize($this->tenant);
         $setting = ClinicSetting::where('branch_id', $this->branch->id)->first();
-        $this->assertEquals('internal_medicine', $setting->prescription_template['template_id']);
+        $this->assertEquals('egyptian_clinic', $setting->prescription_template['template_id']);
 
         // But the doctor record HAS the override
         $doctorUser = User::find($this->doctor->id);
@@ -240,7 +240,7 @@ class PrescriptionTemplateEngineTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.is_doctor_override', false)
-            ->assertJsonPath('data.template_id', 'internal_medicine');
+            ->assertJsonPath('data.template_id', 'egyptian_clinic');
 
         tenancy()->initialize($this->tenant);
         $this->assertNull(User::find($this->doctor->id)->prescription_template);

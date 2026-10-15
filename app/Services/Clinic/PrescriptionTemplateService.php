@@ -13,8 +13,10 @@ class PrescriptionTemplateService
     public const DEFAULT_TEMPLATE = [
         'mode' => 'builtin',
         'paper_size' => 'A5',
-        'template_id' => 'internal_medicine',
-        'primary_color' => '#0284c7',
+        'template_id' => 'egyptian_clinic',
+        'body_layout' => 'columns',
+        'font_size' => 'md',
+        'primary_color' => '#991b1b',
         'margins' => [
             'top_cm' => 4.5,
             'bottom_cm' => 3.0,
@@ -28,11 +30,23 @@ class PrescriptionTemplateService
         'auto_print' => false,
         'laser_contrast_opt' => true,
         'header_data' => [
-            'title' => 'مركز النخبة الطبي المتخصص',
-            'specialty' => 'عيادات الباطنة والجراحة التخصصية',
-            'degrees' => 'نخبة من أساتذة واستشاريي كليات الطب',
-            'phones' => ['01012345678', '0233445566'],
-            'address' => 'القاهرة - التجمع الخامس - ميديكال بارك',
+            'title' => 'المركز الطبي لأمراض القلب والباطنة',
+            'specialty' => 'عيادات الباطنة والقلب التخصصية',
+            'degrees' => 'زميل كلية الأطباء الملكية بلندن • دكتوراه أمراض القلب',
+            'sub_specialties' => 'باطنة عامة — أمراض القلب — سكر وضغط — رسم قلب وإيكو',
+            'phones' => ['0402388422', '01026758170'],
+            'address' => 'طنطا — ميدان المشحمة — شارع الجلاء — برج الأطباء',
+            'second_doctor' => [
+                'name' => 'دكتور / محمد وحيد سليمان',
+                'title' => 'ماجستير أمراض القلب والأوعية الدموية',
+                'degrees' => 'زمالة كهرومغناطيسية القلب ومنظمات ضربات القلب',
+            ],
+        ],
+        'footer_data' => [
+            'services' => 'فحص القلب الفوري بجهاز الإيكو — رسم القلب الكهربائي — سونار على البطن والحوض — جهاز استنشاق بالموجات الصوتية',
+            'clinic_phones' => '0402388422 — 01026758170',
+            'doctor_phones' => '01227117011 — 01025591123',
+            'address' => 'طنطا — ميدان المشحمة — شارع الجلاء — برج الأطباء',
         ],
         'image_path' => null,
     ];
