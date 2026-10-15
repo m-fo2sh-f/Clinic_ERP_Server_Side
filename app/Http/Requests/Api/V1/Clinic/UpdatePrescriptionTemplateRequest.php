@@ -15,12 +15,12 @@ class UpdatePrescriptionTemplateRequest extends FormRequest
     {
         return [
             'mode' => ['required', 'string', 'in:letterhead,builtin,custom_image'],
-            'paper_size' => ['required', 'string', 'in:A5,A4'],
+            'paper_size' => ['required', 'string', 'in:A5,A4,A3'],
             'margins' => ['nullable', 'array'],
-            'margins.top_cm' => ['nullable', 'numeric', 'min:0', 'max:20'],
-            'margins.bottom_cm' => ['nullable', 'numeric', 'min:0', 'max:20'],
-            'margins.left_cm' => ['nullable', 'numeric', 'min:0', 'max:20'],
-            'margins.right_cm' => ['nullable', 'numeric', 'min:0', 'max:20'],
+            'margins.top_cm' => ['nullable', 'numeric', 'min:0', 'max:30'],
+            'margins.bottom_cm' => ['nullable', 'numeric', 'min:0', 'max:25'],
+            'margins.left_cm' => ['nullable', 'numeric', 'min:0', 'max:15'],
+            'margins.right_cm' => ['nullable', 'numeric', 'min:0', 'max:15'],
             'template_id' => ['nullable', 'string', 'max:100'],
             'body_layout' => ['sometimes', 'string', 'in:columns,stacked'],
             'font_size' => ['sometimes', 'string', 'in:sm,md,lg,xl'],
