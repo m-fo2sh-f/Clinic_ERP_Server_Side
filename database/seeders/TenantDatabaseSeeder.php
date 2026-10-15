@@ -121,11 +121,11 @@ class TenantDatabaseSeeder extends Seeder
 
         ClinicSetting::updateOrCreate(
             ['branch_id' => $branch1->id],
-            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
         ClinicSetting::updateOrCreate(
             ['branch_id' => $branch2->id],
-            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
 
         $consultService = Service::firstOrCreate(
@@ -206,11 +206,11 @@ class TenantDatabaseSeeder extends Seeder
 
         ClinicSetting::updateOrCreate(
             ['branch_id' => $eastWing->id],
-            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
         ClinicSetting::updateOrCreate(
             ['branch_id' => $westWing->id],
-            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20]
+            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
 
         $specializedService = Service::firstOrCreate(
@@ -309,6 +309,7 @@ class TenantDatabaseSeeder extends Seeder
                 'queue_strategy' => 'hybrid',
                 'avg_appointment_duration' => 15,
                 'vitals_config' => $vitalsConfig,
+                'prescription_template' => $this->defaultPrescriptionTemplate(),
             ]
         );
 
@@ -374,6 +375,7 @@ class TenantDatabaseSeeder extends Seeder
                 'queue_strategy' => 'scheduled',
                 'avg_appointment_duration' => 20,
                 'vitals_config' => [],
+                'prescription_template' => $this->defaultPrescriptionTemplate(),
             ]
         );
 
@@ -397,5 +399,29 @@ class TenantDatabaseSeeder extends Seeder
         $owner->syncRoles([$ownerRole]);
 
         $owner->branches()->syncWithoutDetaching([$mainBranch->id]);
+    }
+
+    protected function defaultPrescriptionTemplate(): array
+    {
+        return [
+            'mode' => 'builtin',
+            'paper_size' => 'A5',
+            'template_id' => 'internal_medicine',
+            'primary_color' => '#0284c7',
+            'margins' => ['top_cm' => 4.5, 'bottom_cm' => 3.0, 'left_cm' => 1.5, 'right_cm' => 1.5],
+            'show_diagnosis' => true,
+            'show_vitals' => true,
+            'show_qr' => true,
+            'show_rx_code' => true,
+            'auto_print' => false,
+            'laser_contrast_opt' => true,
+            'header_data' => [
+                'title' => 'مركز النخبة الطبي المتخصص',
+                'specialty' => 'عيادات الباطنة والجراحة التخصصية',
+                'degrees' => 'نخبة من أساتذة واستشاريي كليات الطب',
+                'phones' => ['01012345678', '0233445566'],
+                'address' => 'القاهرة - التجمع الخامس - ميديكال بارك',
+            ],
+        ];
     }
 }

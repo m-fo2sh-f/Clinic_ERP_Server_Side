@@ -15,12 +15,14 @@ class ClinicSetting extends Model
         'queue_strategy',
         'avg_appointment_duration',
         'vitals_config',
+        'prescription_template',
     ];
 
     protected function casts(): array
     {
         return [
             'vitals_config' => 'array',
+            'prescription_template' => 'array',
             'avg_appointment_duration' => 'integer',
         ];
     }

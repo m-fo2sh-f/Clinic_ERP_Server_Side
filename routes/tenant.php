@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Clinic\BranchController;
 use App\Http\Controllers\Api\V1\Clinic\EncounterController;
 use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
 use App\Http\Controllers\Api\V1\Clinic\PatientController;
+use App\Http\Controllers\Api\V1\Clinic\PrescriptionTemplateController;
 use App\Http\Middleware\SetBranchContext;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,7 @@ Route::middleware([
     Route::get('/sanctum/csrf-cookie', fn () => response()->noContent());
     Route::post('/api/v1/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::get('/api/v1/public/live-queues', [LiveQueueController::class, 'publicIndex'])->middleware('throttle:120,1');
+    Route::get('/api/v1/clinic-settings/prescription-template/image/{filename}', [PrescriptionTemplateController::class, 'serveImage']);
 
     // 🔒 2. روتات تتطلب تسجيل دخول إجباري (Authenticated Routes)
     Route::middleware(['auth:sanctum', 'tenant.user', SetBranchContext::class])->group(function () {
@@ -59,6 +61,14 @@ Route::middleware([
                     Route::post('{id}/complete', [EncounterController::class, 'complete']);
                     Route::get('today-summary', [EncounterController::class, 'todaySummary']);
                     Route::get('{id}', [EncounterController::class, 'show']);
+                });
+
+                // 🖨️ إعدادات وقالب طباعة الروشتة (Prescription Template Settings)
+                Route::prefix('clinic-settings/prescription-template')->group(function () {
+                    Route::get('/', [PrescriptionTemplateController::class, 'show']);
+                    Route::put('/', [PrescriptionTemplateController::class, 'update']);
+                    Route::post('image', [PrescriptionTemplateController::class, 'uploadImage']);
+                    Route::delete('image', [PrescriptionTemplateController::class, 'deleteImage']);
                 });
             });
 
