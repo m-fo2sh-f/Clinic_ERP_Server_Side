@@ -59,7 +59,7 @@ class PatientController extends Controller
         $isMedicalStaff = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['doctor', 'clinic_owner']);
 
         if (! $isMedicalStaff) {
-            $patient = $this->patientService->show($id, $branchId);
+            $patient = $this->patientService->show($id, $branchId, $user);
 
             return response()->json([
                 'status' => 'success',

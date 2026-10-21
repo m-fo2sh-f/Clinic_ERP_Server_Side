@@ -91,6 +91,33 @@ class PatientResource extends JsonResource
                         $encounterData['clinical_examination'] = $encounter->clinical_examination;
                         $encounterData['diagnosis'] = $encounter->diagnosis;
                         $encounterData['vitals'] = $encounter->vitals;
+
+                        if ($encounter->relationLoaded('prescription') && $encounter->prescription) {
+                            $rx = $encounter->prescription;
+                            $encounterData['prescription'] = [
+                                'id' => (string) $rx->id,
+                                'prescription_code' => $rx->prescription_code,
+                                'prescription_date' => $rx->prescription_date?->toDateString() ?? (string) $rx->prescription_date,
+                                'general_advice' => $rx->general_advice,
+                                'follow_up_date' => $rx->follow_up_date?->toDateString() ?? (string) $rx->follow_up_date,
+                                'items' => $rx->relationLoaded('items')
+                                    ? $rx->items->map(fn ($item) => [
+                                        'id' => $item->id,
+                                        'drug_id' => $item->drug_id,
+                                        'drug_name' => $item->drug_name,
+                                        'name' => $item->drug_name,
+                                        'dose' => $item->dose,
+                                        'dosage' => $item->dose,
+                                        'frequency' => $item->frequency,
+                                        'duration' => $item->duration,
+                                        'instruction' => $item->instruction,
+                                        'instructions' => $item->instruction,
+                                        'notes' => $item->instruction,
+                                        'sort_order' => $item->sort_order,
+                                    ])
+                                    : [],
+                            ];
+                        }
                     }
 
                     return $encounterData;

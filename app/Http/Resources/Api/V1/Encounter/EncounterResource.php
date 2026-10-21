@@ -13,8 +13,10 @@ class EncounterResource extends JsonResource
         return [
             'id' => $this->id,
             'branch_id' => $this->branch_id,
+            'branch_name' => $this->branch?->name,
             'patient_id' => $this->patient_id,
             'doctor_id' => $this->doctor_id,
+            'doctor_name' => $this->doctor?->name,
             'appointment_id' => $this->appointment_id,
             'type' => $this->type?->value ?? $this->type,
             'status' => $this->status?->value ?? $this->status,
@@ -26,6 +28,14 @@ class EncounterResource extends JsonResource
             'started_at' => $this->started_at?->toISOString(),
             'completed_at' => $this->completed_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
+            'doctor' => $this->whenLoaded('doctor', fn () => [
+                'id' => $this->doctor->id,
+                'name' => $this->doctor->name,
+            ]),
+            'branch' => $this->whenLoaded('branch', fn () => [
+                'id' => $this->branch->id,
+                'name' => $this->branch->name,
+            ]),
             'patient' => $this->whenLoaded('patient', fn () => new PatientResource($this->patient)),
             'prescription' => $this->whenLoaded('prescription', fn () => [
                 'id' => $this->prescription->id,
@@ -33,7 +43,22 @@ class EncounterResource extends JsonResource
                 'prescription_date' => $this->prescription->prescription_date,
                 'general_advice' => $this->prescription->general_advice,
                 'follow_up_date' => $this->prescription->follow_up_date,
-                'items' => $this->prescription->relationLoaded('items') ? $this->prescription->items : [],
+                'items' => $this->prescription->relationLoaded('items')
+                    ? $this->prescription->items->map(fn ($item) => [
+                        'id' => $item->id,
+                        'drug_id' => $item->drug_id,
+                        'drug_name' => $item->drug_name,
+                        'name' => $item->drug_name,
+                        'dose' => $item->dose,
+                        'dosage' => $item->dose,
+                        'frequency' => $item->frequency,
+                        'duration' => $item->duration,
+                        'instruction' => $item->instruction,
+                        'instructions' => $item->instruction,
+                        'notes' => $item->instruction,
+                        'sort_order' => $item->sort_order,
+                    ])
+                    : [],
             ]),
             'invoice' => $this->whenLoaded('invoice', fn () => [
                 'id' => $this->invoice->id,

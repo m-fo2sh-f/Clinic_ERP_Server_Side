@@ -3,6 +3,7 @@
 namespace App\Services\Clinic;
 
 use App\Models\Patient;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -132,8 +133,15 @@ class PatientService
     /**
      * Get complete details, clinical encounters, and appointment history for a patient.
      */
-    public function show(string $id, ?string $branchId = null): Patient
+    public function show(string $id, ?string $branchId = null, ?User $user = null): Patient
     {
+        $isClinicalStaff = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['doctor', 'clinic_owner']);
+
+        $encounterRelations = ['branch', 'doctor', 'invoice.payments'];
+        if ($isClinicalStaff) {
+            $encounterRelations[] = 'prescription.items';
+        }
+
         return Patient::withCount([
             'appointments as total_completed_count' => function ($q) {
                 $q->where('status', 'completed');
@@ -155,15 +163,15 @@ class PatientService
                 'appointments' => function ($query) {
                     $query->orderBy('appointment_time', 'desc')->with(['branch', 'doctor']);
                 },
-                'encounters' => function ($query) {
-                    $query->orderBy('started_at', 'desc')->with(['branch', 'doctor', 'invoice.payments', 'prescription.items']);
+                'encounters' => function ($query) use ($encounterRelations) {
+                    $query->orderBy('started_at', 'desc')->with($encounterRelations);
                 },
             ])
             ->findOrFail($id);
     }
 
     /**
-     * Get full patient medical history including encounters and prescriptions.
+     * Get full patient medical history including encounters and prescriptions across all branches.
      */
     public function getPatientHistory(string $id, ?string $branchId = null): Patient
     {
@@ -190,7 +198,15 @@ class PatientService
                         ->with(['branch', 'doctor', 'encounter', 'prescription']);
                 },
                 'encounters' => function ($query) {
-                    $query->orderBy('started_at', 'desc')->with(['prescription.items', 'doctor', 'branch', 'invoice.payments']);
+                    $query->where('status', '!=', 'abandoned')
+                        ->where(function ($q) {
+                            $q->where('status', 'completed')
+                                ->orWhereNotNull('clinical_examination')
+                                ->orWhereNotNull('diagnosis')
+                                ->orWhereHas('prescription');
+                        })
+                        ->orderBy('started_at', 'desc')
+                        ->with(['prescription.items', 'doctor', 'branch', 'invoice.payments']);
                 },
             ])
             ->findOrFail($id);

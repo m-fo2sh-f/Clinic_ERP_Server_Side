@@ -108,8 +108,10 @@ class PatientPrivacyTest extends TestCase
     /** @test */
     public function test_receptionist_calling_show_receives_demographics_without_prescriptions_or_diagnoses(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer '.$this->receptionistToken)
-            ->getJson('http://'.$this->domain.'/api/v1/patients/'.$this->patient->id);
+        tenancy()->initialize($this->tenant);
+        $this->actingAs($this->receptionist, 'sanctum');
+
+        $response = $this->getJson('http://'.$this->domain.'/api/v1/patients/'.$this->patient->id);
 
         $response->assertStatus(200);
         $response->assertJson([
@@ -141,13 +143,17 @@ class PatientPrivacyTest extends TestCase
                 $this->assertArrayHasKey('type', $appt);
             }
         }
+
+        tenancy()->end();
     }
 
     /** @test */
     public function test_doctor_calling_show_receives_full_clinical_history(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer '.$this->doctorToken)
-            ->getJson('http://'.$this->domain.'/api/v1/patients/'.$this->patient->id);
+        tenancy()->initialize($this->tenant);
+        $this->actingAs($this->doctor, 'sanctum');
+
+        $response = $this->getJson('http://'.$this->domain.'/api/v1/patients/'.$this->patient->id);
 
         $response->assertStatus(200);
         $response->assertJson([
@@ -165,5 +171,18 @@ class PatientPrivacyTest extends TestCase
         $this->assertTrue(isset($responseData['appointments']) || isset($responseData['consultations']));
         $this->assertArrayHasKey('medical_history', $responseData);
         $this->assertEquals('تاريخ مرضي سريري سري للغاية', $responseData['medical_history']);
+    }
+
+    protected function tearDown(): void
+    {
+        if (function_exists('tenancy') && tenancy()->initialized) {
+            tenancy()->end();
+        }
+
+        if (isset($this->tenant)) {
+            $this->tenant->delete();
+        }
+
+        parent::tearDown();
     }
 }
