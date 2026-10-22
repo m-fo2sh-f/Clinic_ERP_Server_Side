@@ -247,10 +247,7 @@ class PolyclinicPatientJourneyTest extends TestCase
                 'medications' => [
                     [
                         'drug_name' => 'Augmentin 1g',
-                        'dose' => '1 tablet',
-                        'frequency' => 'Every 12 hours',
-                        'duration' => '7 days',
-                        'instruction' => 'After food',
+                        'dosage' => '1 tablet Every 12 hours For 7 days After food',
                     ],
                 ],
                 'general_advice' => 'Rest, drink warm fluids, and isolate for 2 days.',

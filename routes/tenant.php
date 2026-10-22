@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Clinic\AppointmentController;
 use App\Http\Controllers\Api\V1\Clinic\BillingController;
 use App\Http\Controllers\Api\V1\Clinic\BranchController;
+use App\Http\Controllers\Api\V1\Clinic\DoctorDrugController;
 use App\Http\Controllers\Api\V1\Clinic\EncounterController;
 use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
 use App\Http\Controllers\Api\V1\Clinic\PatientController;
@@ -69,6 +70,16 @@ Route::middleware([
                     Route::put('/', [PrescriptionTemplateController::class, 'update']);
                     Route::post('image', [PrescriptionTemplateController::class, 'uploadImage']);
                     Route::delete('image', [PrescriptionTemplateController::class, 'deleteImage']);
+                });
+
+                // 💊 محرك الأدوية المصرية وقائمة الطبيب الذكية (Doctor Drugs & Central Medications)
+                Route::prefix('doctor-drugs')->group(function () {
+                    Route::get('search', [DoctorDrugController::class, 'search']);
+                    Route::get('/', [DoctorDrugController::class, 'index']);
+                    Route::post('/', [DoctorDrugController::class, 'store']);
+                    Route::put('{doctorDrug}', [DoctorDrugController::class, 'update']);
+                    Route::delete('{doctorDrug}', [DoctorDrugController::class, 'destroy']);
+                    Route::post('{doctorDrug}/favorite', [DoctorDrugController::class, 'toggleFavorite']);
                 });
             });
 

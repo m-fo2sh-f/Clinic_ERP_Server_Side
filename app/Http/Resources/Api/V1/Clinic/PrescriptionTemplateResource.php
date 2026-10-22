@@ -21,7 +21,7 @@ class PrescriptionTemplateResource extends JsonResource
 
         if ($imagePath) {
             $filename = basename($imagePath);
-            $imageUrl = url("/api/v1/clinic-settings/prescription-template/image/{$filename}");
+            $imageUrl = asset('storage/'.$imagePath);
         }
 
         return [

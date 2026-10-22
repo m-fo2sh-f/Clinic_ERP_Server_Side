@@ -15,16 +15,11 @@ class PrescriptionItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'drug_id' => $this->drug_id,
-            'drug_name' => $this->drug_name,
-            'dose' => $this->dose,
-            'dosage' => $this->dose,
-            'frequency' => $this->frequency,
-            'duration' => $this->duration,
-            'instruction' => $this->instruction,
-            'instructions' => $this->instruction,
-            'sort_order' => $this->sort_order,
+            'id' => (string) $this->id,
+            'drug_id' => $this->drug_id ? (string) $this->drug_id : null,
+            'drug_name' => (string) $this->drug_name,
+            'dosage' => (string) ($this->dosage ?? ''),
+            'sort_order' => (int) ($this->sort_order ?? 0),
         ];
     }
 }

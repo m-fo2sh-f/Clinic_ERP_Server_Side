@@ -45,18 +45,11 @@ class EncounterResource extends JsonResource
                 'follow_up_date' => $this->prescription->follow_up_date,
                 'items' => $this->prescription->relationLoaded('items')
                     ? $this->prescription->items->map(fn ($item) => [
-                        'id' => $item->id,
-                        'drug_id' => $item->drug_id,
-                        'drug_name' => $item->drug_name,
-                        'name' => $item->drug_name,
-                        'dose' => $item->dose,
-                        'dosage' => $item->dose,
-                        'frequency' => $item->frequency,
-                        'duration' => $item->duration,
-                        'instruction' => $item->instruction,
-                        'instructions' => $item->instruction,
-                        'notes' => $item->instruction,
-                        'sort_order' => $item->sort_order,
+                        'id' => (string) $item->id,
+                        'drug_id' => $item->drug_id ? (string) $item->drug_id : null,
+                        'drug_name' => (string) $item->drug_name,
+                        'dosage' => (string) ($item->dosage ?? ''),
+                        'sort_order' => (int) ($item->sort_order ?? 0),
                     ])
                     : [],
             ]),

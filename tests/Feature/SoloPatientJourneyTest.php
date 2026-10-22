@@ -186,17 +186,11 @@ class SoloPatientJourneyTest extends TestCase
                 'medications' => [
                     [
                         'drug_name' => 'Aspirin Protect 100mg',
-                        'dose' => '1 tablet',
-                        'frequency' => 'Once daily',
-                        'duration' => '30 days',
-                        'instruction' => 'After lunch',
+                        'dosage' => '1 tablet Once daily For 30 days After lunch',
                     ],
                     [
                         'drug_name' => 'Concor Cor 2.5mg',
-                        'dose' => '1 tablet',
-                        'frequency' => 'Once daily',
-                        'duration' => '30 days',
-                        'instruction' => 'Before breakfast',
+                        'dosage' => '1 tablet Once daily For 30 days Before breakfast',
                     ],
                 ],
                 'services' => [

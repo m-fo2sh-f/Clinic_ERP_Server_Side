@@ -15,10 +15,7 @@ class PrescriptionItem extends Model
         'prescription_id',
         'drug_id',
         'drug_name',
-        'dose',
-        'frequency',
-        'duration',
-        'instruction',
+        'dosage',
         'sort_order',
     ];
 

@@ -16,6 +16,7 @@ use App\Models\Invoice;
 use App\Models\LiveQueue;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Services\Clinic\Medications\PrescriptionAutoLearnService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -172,16 +173,17 @@ class EncounterService
                     $items[] = [
                         'drug_id' => $med['drug_id'] ?? null,
                         'drug_name' => $med['drug_name'] ?? $med['name'] ?? '',
-                        'dose' => $med['dose'] ?? $med['dosage'] ?? '',
-                        'frequency' => $med['frequency'] ?? '',
-                        'duration' => $med['duration'] ?? '',
-                        'instruction' => $med['instruction'] ?? $med['instructions'] ?? null,
+                        'dosage' => $med['dosage'] ?? '',
                         'sort_order' => $med['sort_order'] ?? $index,
                     ];
                 }
 
                 $prescription->items()->createMany($items);
                 $prescription->load(['items', 'doctor']);
+
+                // Auto-learn prescribed medications into doctor's quick prescribing catalog
+                app(PrescriptionAutoLearnService::class)
+                    ->recordPrescriptionUsage((string) $doctorId, $items);
             }
 
             // 4. Billing Integration (Snapshot prices + Checkout)

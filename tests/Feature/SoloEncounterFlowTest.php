@@ -203,10 +203,7 @@ class SoloEncounterFlowTest extends TestCase
             'medications' => [
                 [
                     'drug_name' => 'Augmentin 1g',
-                    'dose' => '1 tablet',
-                    'frequency' => 'Every 12 hours',
-                    'duration' => '7 days',
-                    'instruction' => 'بعد الأكل',
+                    'dosage' => '1 tablet Every 12 hours For 7 days بعد الأكل',
                 ],
             ],
             // Services: Branch override consultation is 250 EGP, ECG is 120 EGP => Total 370 EGP

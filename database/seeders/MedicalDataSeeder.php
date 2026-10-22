@@ -394,10 +394,7 @@ class MedicalDataSeeder extends Seeder
                         'prescription_id' => $rx->id,
                         'drug_id' => $createdDrugs[0]->id,
                         'drug_name' => $createdDrugs[0]->trade_name,
-                        'dose' => 'قرص واحد',
-                        'frequency' => 'كل 12 ساعة',
-                        'duration' => '7 أيام',
-                        'instruction' => 'بعد الأكل',
+                        'dosage' => 'قرص واحد كل 12 ساعة لمدة 7 أيام بعد الأكل',
                         'sort_order' => 1,
                     ]);
                 }

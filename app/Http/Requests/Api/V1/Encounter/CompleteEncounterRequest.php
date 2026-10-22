@@ -30,10 +30,7 @@ class CompleteEncounterRequest extends FormRequest
             'medications' => 'nullable|array',
             'medications.*.drug_id' => 'nullable|uuid',
             'medications.*.drug_name' => 'required_with:medications|string|max:255',
-            'medications.*.dose' => 'nullable|string|max:255',
-            'medications.*.frequency' => 'nullable|string|max:255',
-            'medications.*.duration' => 'nullable|string|max:255',
-            'medications.*.instruction' => 'nullable|string|max:500',
+            'medications.*.dosage' => 'nullable|string|max:1000',
             // Services & Checkout
             'services' => 'nullable|array',
             'services.*.service_id' => 'required_with:services|uuid',

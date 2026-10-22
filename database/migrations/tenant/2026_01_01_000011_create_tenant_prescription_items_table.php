@@ -13,10 +13,7 @@ return new class extends Migration
             $table->foreignUuid('prescription_id')->constrained('prescriptions')->cascadeOnDelete();
             $table->foreignUuid('drug_id')->nullable()->constrained('drugs')->nullOnDelete();
             $table->string('drug_name');
-            $table->string('dose');
-            $table->string('frequency');
-            $table->string('duration');
-            $table->text('instruction')->nullable();
+            $table->text('dosage');
             $table->integer('sort_order')->default(0);
             $table->timestamps();
 

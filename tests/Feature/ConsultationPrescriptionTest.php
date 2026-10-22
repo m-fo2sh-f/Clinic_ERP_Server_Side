@@ -175,8 +175,7 @@ class ConsultationPrescriptionTest extends TestCase
         $this->assertEquals($prescription->id, $items[0]->prescription_id);
         $this->assertEquals($this->drugPanadol->id, $items[0]->drug_id);
         $this->assertEquals('Panadol Extra', $items[0]->drug_name);
-        $this->assertEquals('قرص واحد', $items[0]->dose);
-        $this->assertEquals('بعد الأكل', $items[0]->instruction);
+        $this->assertEquals('قرص واحد', $items[0]->dosage);
         $this->assertEquals(1, $items[0]->sort_order);
 
         // Second Item assertions (custom drug without drug_id)
@@ -208,10 +207,7 @@ class ConsultationPrescriptionTest extends TestCase
             'medications' => [
                 [
                     'name' => 'دواء سري خاص بتينانت أ',
-                    'dose' => '1 قرص',
-                    'frequency' => 'يومياً',
-                    'duration' => '7 أيام',
-                    'instruction' => 'سري للغاية',
+                    'dosage' => '1 قرص',
                 ],
             ],
         ]);

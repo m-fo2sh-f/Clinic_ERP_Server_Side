@@ -493,9 +493,7 @@ class PatientLifecycleCompleteFlowTest extends TestCase
             'medications' => [
                 [
                     'drug_name' => 'مكمل غذائي',
-                    'dose' => 'قرص يومياً',
-                    'frequency' => 'صباحاً',
-                    'duration' => '14 يوم',
+                    'dosage' => 'قرص يومياً صباحاً لمدة 14 يوم',
                 ],
             ],
             // 100% discount or 0 price service -> total = 0
