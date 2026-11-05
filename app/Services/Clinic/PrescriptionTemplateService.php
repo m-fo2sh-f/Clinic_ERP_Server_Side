@@ -5,8 +5,8 @@ namespace App\Services\Clinic;
 use App\Models\ClinicSetting;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PrescriptionTemplateService
 {
@@ -34,13 +34,13 @@ class PrescriptionTemplateService
             'specialty' => 'عيادات الباطنة والقلب التخصصية',
             'degrees' => 'زميل كلية الأطباء الملكية بلندن • دكتوراه أمراض القلب',
             'sub_specialties' => 'باطنة عامة — أمراض القلب — سكر وضغط — رسم قلب وإيكو',
-            'phones' => ['0402388422', '01026758170'],
-            'address' => 'طنطا — ميدان المشحمة — شارع الجلاء — برج الأطباء',
             'second_doctor' => [
                 'name' => 'دكتور / محمد وحيد سليمان',
                 'title' => 'ماجستير أمراض القلب والأوعية الدموية',
                 'degrees' => 'زمالة كهرومغناطيسية القلب ومنظمات ضربات القلب',
             ],
+            'phones' => ['0402388422', '01026758170'],
+            'address' => 'طنطا — ميدان المشحمة — شارع الجلاء — برج الأطباء',
         ],
         'footer_data' => [
             'services' => 'فحص القلب الفوري بجهاز الإيكو — رسم القلب الكهربائي — سونار على البطن والحوض — جهاز استنشاق بالموجات الصوتية',
@@ -50,6 +50,10 @@ class PrescriptionTemplateService
         ],
         'image_path' => null,
     ];
+
+    public function __construct(
+        protected PrescriptionImageStorageService $storageService
+    ) {}
 
     /**
      * Get the active template for a branch and user, considering doctor overrides.
@@ -78,26 +82,23 @@ class PrescriptionTemplateService
      */
     public function updateTemplate(string $branchId, User $user, array $data): array
     {
-        $doctorOverride = isset($data['doctor_override']) ? (bool) $data['doctor_override'] : null;
+        $tenantId = tenant('id') ?? 'default';
+        $doctorOverride = $data['doctor_override'] ?? null;
+        $shouldClearImage = ! empty($data['clear_image'])
+            || (($data['mode'] ?? '') !== 'custom_image' && ! empty($data['clear_image_on_mode_change']));
 
-        // If the user wants to remove/reset their doctor override
+        // If explicitly reverting doctor override
         if ($doctorOverride === false && ! empty($user->prescription_template)) {
             $oldUserImage = $user->prescription_template['image_path'] ?? null;
-            if (is_string($oldUserImage) && ! empty($oldUserImage)) {
-                if (Storage::disk('public_shared')->exists($oldUserImage)) {
-                    Storage::disk('public_shared')->delete($oldUserImage);
-                } elseif (Storage::disk('public')->exists($oldUserImage)) {
-                    Storage::disk('public')->delete($oldUserImage);
-                }
+            if ($oldUserImage) {
+                $this->storageService->deleteImage($oldUserImage, $tenantId);
             }
-
             $user->prescription_template = null;
             $user->save();
 
             return $this->getTemplateForBranchAndUser($branchId, $user);
         }
 
-        // Determine if we should save to user override
         $saveToUser = false;
         if ($doctorOverride === true) {
             $saveToUser = true;
@@ -105,31 +106,40 @@ class PrescriptionTemplateService
             $saveToUser = true;
         }
 
-        // Clean up input data keys
-        $cleanData = $data;
-        unset($cleanData['doctor_override'], $cleanData['branch_id']);
-
-        $deleteImageFile = function (?string $path): void {
-            if (is_string($path) && ! empty($path)) {
-                if (Storage::disk('public_shared')->exists($path)) {
-                    Storage::disk('public_shared')->delete($path);
-                } elseif (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
-                }
-            }
-        };
+        $allowedKeys = [
+            'mode',
+            'paper_size',
+            'margins',
+            'template_id',
+            'body_layout',
+            'font_size',
+            'primary_color',
+            'show_diagnosis',
+            'show_vitals',
+            'show_qr',
+            'show_rx_code',
+            'auto_print',
+            'laser_contrast_opt',
+            'header_data',
+            'footer_data',
+            'image_path',
+        ];
 
         if ($saveToUser) {
             $current = $user->prescription_template ?: $this->getTemplateForBranchAndUser($branchId, $user);
-
-            // Garbage collection: check if image is being replaced
             $oldImagePath = $current['image_path'] ?? null;
-            $newImagePath = $cleanData['image_path'] ?? null;
-            if (is_string($oldImagePath) && ! empty($oldImagePath) && is_string($newImagePath) && $oldImagePath !== $newImagePath) {
-                $deleteImageFile($oldImagePath);
+            $updated = array_intersect_key(array_merge($current, $data), array_flip($allowedKeys));
+
+            if ($shouldClearImage) {
+                if ($oldImagePath) {
+                    $this->storageService->deleteImage($oldImagePath, $tenantId);
+                }
+                $updated['image_path'] = null;
+            } else {
+                // Preserve verified server-side path; do not allow arbitrary client hijacking
+                $updated['image_path'] = $oldImagePath;
             }
 
-            $updated = array_merge($current, $cleanData);
             $user->prescription_template = $updated;
             $user->save();
         } else {
@@ -139,15 +149,19 @@ class PrescriptionTemplateService
             );
 
             $current = $setting->prescription_template ?: self::DEFAULT_TEMPLATE;
-
-            // Garbage collection: check if image is being replaced
             $oldImagePath = $current['image_path'] ?? null;
-            $newImagePath = $cleanData['image_path'] ?? null;
-            if (is_string($oldImagePath) && ! empty($oldImagePath) && is_string($newImagePath) && $oldImagePath !== $newImagePath) {
-                $deleteImageFile($oldImagePath);
+            $updated = array_intersect_key(array_merge($current, $data), array_flip($allowedKeys));
+
+            if ($shouldClearImage) {
+                if ($oldImagePath) {
+                    $this->storageService->deleteImage($oldImagePath, $tenantId);
+                }
+                $updated['image_path'] = null;
+            } else {
+                // Preserve verified server-side path; do not allow arbitrary client hijacking
+                $updated['image_path'] = $oldImagePath;
             }
 
-            $updated = array_merge($current, $cleanData);
             $setting->prescription_template = $updated;
             $setting->save();
         }
@@ -156,7 +170,11 @@ class PrescriptionTemplateService
     }
 
     /**
-     * Upload an image for the template and clean up any existing image.
+     * Upload an image with atomic replacement (zero orphaned files):
+     * 1. Store new file
+     * 2. Save DB reference with concurrency row locking
+     * 3. On success, delete old file from disk
+     * 4. On DB failure, rollback and delete newly uploaded file
      */
     public function uploadTemplateImage(string $branchId, User $user, UploadedFile $file, ?bool $doctorOverride = null): array
     {
@@ -167,63 +185,60 @@ class PrescriptionTemplateService
             $saveToUser = true;
         }
 
-        $extension = $file->getClientOriginalExtension() ?: $file->extension();
-        $filename = Str::uuid()->toString().'.'.$extension;
         $tenantId = tenant('id') ?? 'default';
 
-        // Save new image using Storage::disk('public_shared')
-        $storedPath = Storage::disk('public_shared')->putFileAs("tenants/{$tenantId}/templates", $file, $filename);
+        // 1. Store new image
+        $newStoredPath = $this->storageService->storeImage($file, $tenantId);
+        $oldPath = null;
 
-        $deleteImageFile = function (?string $path): void {
-            if (is_string($path) && ! empty($path)) {
-                if (Storage::disk('public_shared')->exists($path)) {
-                    Storage::disk('public_shared')->delete($path);
-                } elseif (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
+        try {
+            DB::transaction(function () use ($branchId, $user, $saveToUser, $newStoredPath, &$oldPath) {
+                if ($saveToUser) {
+                    $lockedUser = User::where('id', $user->id)->lockForUpdate()->first() ?: $user;
+                    $current = $lockedUser->prescription_template ?: $this->getTemplateForBranchAndUser($branchId, $lockedUser);
+                    $oldPath = $current['image_path'] ?? null;
+
+                    $current['image_path'] = $newStoredPath;
+                    $current['mode'] = 'custom_image';
+
+                    $lockedUser->prescription_template = $current;
+                    $lockedUser->save();
+                } else {
+                    $setting = ClinicSetting::where('branch_id', $branchId)->lockForUpdate()->first();
+                    if (! $setting) {
+                        $setting = ClinicSetting::firstOrCreate(
+                            ['branch_id' => $branchId],
+                            ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
+                        );
+                    }
+
+                    $current = $setting->prescription_template ?: self::DEFAULT_TEMPLATE;
+                    $oldPath = $current['image_path'] ?? null;
+
+                    $current['image_path'] = $newStoredPath;
+                    $current['mode'] = 'custom_image';
+
+                    $setting->prescription_template = $current;
+                    $setting->save();
                 }
+            });
+
+            // 2. Atomic swap: delete old file from disk AFTER database commit succeeds
+            if ($oldPath && $oldPath !== $newStoredPath) {
+                $this->storageService->deleteImage($oldPath, $tenantId);
             }
-        };
-
-        if ($saveToUser) {
-            $current = $user->prescription_template ?: $this->getTemplateForBranchAndUser($branchId, $user);
-
-            // Garbage collection: delete old image
-            $oldPath = $current['image_path'] ?? null;
-            $deleteImageFile($oldPath);
-
-            $current['image_path'] = $storedPath;
-            if (($current['mode'] ?? 'builtin') === 'builtin') {
-                $current['mode'] = 'custom_image';
-            }
-
-            $user->prescription_template = $current;
-            $user->save();
-        } else {
-            $setting = ClinicSetting::firstOrCreate(
-                ['branch_id' => $branchId],
-                ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15]
-            );
-
-            $current = $setting->prescription_template ?: self::DEFAULT_TEMPLATE;
-
-            // Garbage collection: delete old image
-            $oldPath = $current['image_path'] ?? null;
-            $deleteImageFile($oldPath);
-
-            $current['image_path'] = $storedPath;
-            if (($current['mode'] ?? 'builtin') === 'builtin') {
-                $current['mode'] = 'custom_image';
-            }
-
-            $setting->prescription_template = $current;
-            $setting->save();
+        } catch (\Throwable $e) {
+            // Rollback: if DB commit failed, remove the newly uploaded file to prevent orphan files
+            $this->storageService->deleteImage($newStoredPath, $tenantId);
+            Log::error('Failed to commit prescription template image to database: '.$e->getMessage());
+            throw $e;
         }
 
         return $this->getTemplateForBranchAndUser($branchId, $user);
     }
 
     /**
-     * Delete the uploaded template image.
+     * Delete the uploaded template image and clear DB field.
      */
     public function deleteTemplateImage(string $branchId, User $user, ?bool $doctorOverride = null): array
     {
@@ -234,20 +249,12 @@ class PrescriptionTemplateService
             $saveToUser = true;
         }
 
-        $deleteImageFile = function (?string $path): void {
-            if (is_string($path) && ! empty($path)) {
-                if (Storage::disk('public_shared')->exists($path)) {
-                    Storage::disk('public_shared')->delete($path);
-                } elseif (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
-                }
-            }
-        };
+        $tenantId = tenant('id') ?? 'default';
+        $oldPath = null;
 
         if ($saveToUser) {
             $current = $user->prescription_template ?: [];
             $oldPath = $current['image_path'] ?? null;
-            $deleteImageFile($oldPath);
 
             $current['image_path'] = null;
             $user->prescription_template = $current;
@@ -256,7 +263,6 @@ class PrescriptionTemplateService
             $setting = ClinicSetting::where('branch_id', $branchId)->first();
             $current = $setting?->prescription_template ?: [];
             $oldPath = $current['image_path'] ?? null;
-            $deleteImageFile($oldPath);
 
             if ($setting) {
                 $current['image_path'] = null;
@@ -265,27 +271,20 @@ class PrescriptionTemplateService
             }
         }
 
+        if ($oldPath) {
+            $this->storageService->deleteImage($oldPath, $tenantId);
+        }
+
         return $this->getTemplateForBranchAndUser($branchId, $user);
     }
 
     /**
-     * Resolve the storage path for serving the template image.
+     * Stream or get path for serving the template image safely.
      */
     public function getImagePath(string $filename): string
     {
-        $cleanFilename = basename($filename);
         $tenantId = tenant('id') ?? 'default';
-        $sharedPath = "tenants/{$tenantId}/templates/{$cleanFilename}";
 
-        if (Storage::disk('public_shared')->exists($sharedPath)) {
-            return Storage::disk('public_shared')->path($sharedPath);
-        }
-
-        $legacyPath = 'templates/'.$cleanFilename;
-        if (Storage::disk('public')->exists($legacyPath)) {
-            return Storage::disk('public')->path($legacyPath);
-        }
-
-        abort(404, 'Template image not found.');
+        return $this->storageService->resolvePhysicalPath($filename, $tenantId);
     }
 }

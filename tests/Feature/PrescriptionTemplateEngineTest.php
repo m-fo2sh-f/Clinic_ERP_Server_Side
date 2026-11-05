@@ -35,6 +35,7 @@ class PrescriptionTemplateEngineTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
+        Storage::fake('public_shared');
 
         $tenantId = 'test-rx-'.Str::random(6);
         $this->domain = $tenantId.'.test';
@@ -92,6 +93,15 @@ class PrescriptionTemplateEngineTest extends TestCase
         );
 
         tenancy()->end();
+    }
+
+    protected function tearDown(): void
+    {
+        if (function_exists('tenancy') && tenancy()->initialized) {
+            tenancy()->end();
+        }
+
+        parent::tearDown();
     }
 
     public function test_can_get_default_prescription_template(): void
@@ -173,7 +183,7 @@ class PrescriptionTemplateEngineTest extends TestCase
             ->withHeader('X-Branch-ID', $this->branch->id)
             ->putJson("http://{$this->domain}/api/v1/clinic-settings/prescription-template", [
                 'mode' => 'invalid_mode',
-                'paper_size' => 'A3',
+                'paper_size' => 'invalid_size',
             ]);
 
         $response->assertStatus(422)
@@ -265,12 +275,12 @@ class PrescriptionTemplateEngineTest extends TestCase
         $imageUrl = $response->json('data.image_url');
 
         $this->assertNotNull($imagePath);
-        $this->assertStringStartsWith('templates/', $imagePath);
+        $this->assertTrue(str_starts_with($imagePath, 'tenants/') || str_starts_with($imagePath, 'templates/'));
         $this->assertStringContainsString('/api/v1/clinic-settings/prescription-template/image/', $imageUrl);
 
-        // Verify file stored in public disk
+        // Verify file stored in public_shared or public disk
         tenancy()->initialize($this->tenant);
-        $this->assertTrue(Storage::disk('public')->exists($imagePath));
+        $this->assertTrue(Storage::disk('public_shared')->exists($imagePath) || Storage::disk('public')->exists($imagePath));
         tenancy()->end();
     }
 
@@ -314,7 +324,7 @@ class PrescriptionTemplateEngineTest extends TestCase
         $this->assertNotNull($firstPath);
 
         tenancy()->initialize($this->tenant);
-        $this->assertTrue(Storage::disk('public')->exists($firstPath));
+        $this->assertTrue(Storage::disk('public_shared')->exists($firstPath) || Storage::disk('public')->exists($firstPath));
         tenancy()->end();
 
         // Upload second image
@@ -331,9 +341,9 @@ class PrescriptionTemplateEngineTest extends TestCase
 
         tenancy()->initialize($this->tenant);
         // Old image must have been deleted
-        $this->assertFalse(Storage::disk('public')->exists($firstPath));
+        $this->assertFalse(Storage::disk('public_shared')->exists($firstPath) || Storage::disk('public')->exists($firstPath));
         // New image exists
-        $this->assertTrue(Storage::disk('public')->exists($secondPath));
+        $this->assertTrue(Storage::disk('public_shared')->exists($secondPath) || Storage::disk('public')->exists($secondPath));
         tenancy()->end();
     }
 
@@ -356,7 +366,7 @@ class PrescriptionTemplateEngineTest extends TestCase
             ->assertJsonPath('data.image_path', null);
 
         tenancy()->initialize($this->tenant);
-        $this->assertFalse(Storage::disk('public')->exists($path));
+        $this->assertFalse(Storage::disk('public_shared')->exists($path) || Storage::disk('public')->exists($path));
         tenancy()->end();
     }
 
@@ -386,5 +396,54 @@ class PrescriptionTemplateEngineTest extends TestCase
         $serveRes = $this->get("http://{$this->domain}/api/v1/clinic-settings/prescription-template/image/non-existent.png");
 
         $serveRes->assertNotFound();
+    }
+
+    public function test_upload_strictly_rejects_svg_files_disguised_as_images(): void
+    {
+        $svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><circle cx="50" cy="50" r="40"/><script>alert("xss")</script></svg>';
+        $fakeSvg = UploadedFile::fake()->createWithContent('malicious.png', $svgContent);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->withHeader('X-Branch-ID', $this->branch->id)
+            ->postJson("http://{$this->domain}/api/v1/clinic-settings/prescription-template/image", [
+                'image' => $fakeSvg,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'VALIDATION_FAILED');
+    }
+
+    public function test_upload_strictly_rejects_polyglot_file_with_php_code(): void
+    {
+        $phpPayload = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x01\x2c\x00\x00\x01\x2c\x08\x06\x00\x00\x00\x00\x00\x00\x00<?php phpinfo(); ?>";
+        $polyglot = UploadedFile::fake()->createWithContent('shell.png', $phpPayload);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->withHeader('X-Branch-ID', $this->branch->id)
+            ->postJson("http://{$this->domain}/api/v1/clinic-settings/prescription-template/image", [
+                'image' => $polyglot,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'VALIDATION_FAILED');
+    }
+
+    public function test_serve_image_includes_hardening_headers(): void
+    {
+        $image = UploadedFile::fake()->image('secure_serve.png', 800, 1200);
+        $res = $this->actingAs($this->owner, 'sanctum')
+            ->withHeader('X-Branch-ID', $this->branch->id)
+            ->postJson("http://{$this->domain}/api/v1/clinic-settings/prescription-template/image", [
+                'image' => $image,
+            ]);
+
+        $imagePath = $res->json('data.image_path');
+        $filename = basename($imagePath);
+
+        $serveRes = $this->get("http://{$this->domain}/api/v1/clinic-settings/prescription-template/image/{$filename}");
+
+        $serveRes->assertOk();
+        $this->assertEquals('nosniff', $serveRes->headers->get('X-Content-Type-Options'));
+        $this->assertStringContainsString("default-src 'none'", $serveRes->headers->get('Content-Security-Policy'));
     }
 }

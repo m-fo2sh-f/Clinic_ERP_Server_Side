@@ -177,12 +177,23 @@ class PatientController extends Controller
             return response()->json(['status' => 'success', 'data' => []]);
         }
 
+        $digits = preg_replace('/[^\d]/', '', $query);
+        $localDigits = preg_replace('/^(?:20)/', '0', $digits);
+
         // 🔒 استبعاد البيانات الطبية الحساسة (chronic_diseases, allergies) لحماية الخصوصية
         $patients = Patient::query()
-            ->where(function ($q) use ($query) {
+            ->where(function ($q) use ($query, $digits, $localDigits) {
                 $q->where('name', 'LIKE', "%{$query}%")
-                    ->orWhere('phone', 'LIKE', "%{$query}%")
-                    ->orWhere('medical_number', 'LIKE', "%{$query}%");
+                    ->orWhere('medical_number', 'LIKE', "%{$query}%")
+                    ->orWhere('phone', 'LIKE', "%{$query}%");
+
+                if (strlen($digits) >= 2) {
+                    $q->orWhere('phone', 'LIKE', "%{$digits}%");
+                }
+
+                if (strlen($localDigits) >= 2 && $localDigits !== $digits) {
+                    $q->orWhere('phone', 'LIKE', "%{$localDigits}%");
+                }
             })
             ->select(['id', 'name', 'phone', 'medical_number', 'age', 'gender', 'blood_group'])
             ->limit(15)

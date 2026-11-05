@@ -46,9 +46,9 @@ class UpdatePrescriptionTemplateRequest extends FormRequest
             'footer_data.doctor_phones' => ['nullable', 'string', 'max:255'],
             'footer_data.address' => ['nullable', 'string', 'max:500'],
             'doctor_override' => ['nullable', 'boolean'],
-            'image_path' => ['nullable', 'string', 'max:500'],
-            'background_image' => ['nullable', 'string', 'max:500'],
-            'branch_id' => ['nullable', 'string'],
+            'image_path' => ['nullable', 'string', 'max:500', 'not_regex:/\.\./'],
+            'background_image' => ['nullable', 'string', 'max:500', 'not_regex:/\.\./'],
+            'clear_image' => ['nullable', 'boolean'],
         ];
     }
 }

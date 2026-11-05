@@ -99,12 +99,17 @@ class PrescriptionTemplateController extends Controller
     public function serveImage(string $filename): BinaryFileResponse
     {
         $fullPath = $this->templateService->getImagePath($filename);
-        $mime = mime_content_type($fullPath) ?: 'image/png';
+        $detectedMime = mime_content_type($fullPath) ?: 'image/png';
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+        $mime = in_array($detectedMime, $allowedMimes, true) ? $detectedMime : 'image/png';
 
         return response()->file($fullPath, [
             'Content-Type' => $mime,
             'Access-Control-Allow-Origin' => '*',
             'Cache-Control' => 'public, max-age=86400',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            'Content-Disposition' => 'inline; filename="'.basename($fullPath).'"',
         ]);
     }
 

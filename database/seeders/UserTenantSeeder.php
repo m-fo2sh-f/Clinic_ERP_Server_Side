@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Stancl\Tenancy\Database\Models\Domain;
 
@@ -45,14 +46,35 @@ class UserTenantSeeder extends Seeder
             }
         };
 
+        $findOrCreateTenantSafely = function (string $id, array $attributes) {
+            $tenant = Tenant::find($id);
+            if ($tenant) {
+                return $tenant;
+            }
+
+            $dbName = config('tenancy.database.prefix').$id.config('tenancy.database.suffix');
+            $dbExists = false;
+            try {
+                $dbExists = count(DB::select("SHOW DATABASES LIKE '{$dbName}'")) > 0;
+            } catch (\Throwable) {
+                $dbExists = false;
+            }
+
+            if ($dbExists) {
+                return Tenant::withoutEvents(fn () => Tenant::create(array_merge(['id' => $id], $attributes)));
+            }
+
+            return Tenant::create(array_merge(['id' => $id], $attributes));
+        };
+
         // =========================================================================
         // 🏥 1. TENANT 1: Clinic A (Polyclinic Multi-Branch)
         // - Mode: polyclinic
         // - 2 Branches: Branch 1 (المعادي) & Branch 2 (مدينة نصر)
         // - 1 Doctor assigned to both branches, 2 Receptionists (one per branch)
         // =========================================================================
-        $tenant1 = Tenant::firstOrCreate(
-            ['id' => 'tenant-1'],
+        $tenant1 = $findOrCreateTenantSafely(
+            'tenant-1',
             [
                 'clinic_name' => 'مجموعة عيادات النور (Clinic A - Polyclinic)',
                 'owner_email' => 'dr.ahmed@clinica.test',
@@ -77,8 +99,8 @@ class UserTenantSeeder extends Seeder
         // - 2 Branches: East Wing (الجناح الشرقي) & West Wing (الجناح الغربي)
         // - 2 Doctors (strictly separated per wing), 1 Shared Receptionist
         // =========================================================================
-        $tenant2 = Tenant::firstOrCreate(
-            ['id' => 'tenant-2'],
+        $tenant2 = $findOrCreateTenantSafely(
+            'tenant-2',
             [
                 'clinic_name' => 'مستشفى الأمل (Clinic B - Dual Doctor)',
                 'owner_email' => 'dr.tarek@clinicb.test',
@@ -102,8 +124,8 @@ class UserTenantSeeder extends Seeder
         // - 1 Single Branch: Main Branch (فرع العيادة الرئيسي)
         // - 1 Doctor, 1 Receptionist
         // =========================================================================
-        $tenant3 = Tenant::firstOrCreate(
-            ['id' => 'tenant-3'],
+        $tenant3 = $findOrCreateTenantSafely(
+            'tenant-3',
             [
                 'clinic_name' => 'عيادة الشيخ زايد (Clinic C - Zayed Branch)',
                 'owner_email' => 'dr.sherif@solo.test',
