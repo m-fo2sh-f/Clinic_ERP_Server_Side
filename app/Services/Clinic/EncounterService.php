@@ -96,7 +96,7 @@ class EncounterService
                 'chief_complaint' => $data['chief_complaint'] ?? null,
                 'clinical_examination' => $data['clinical_examination'] ?? null,
                 'diagnosis' => $this->normalizeDiagnosis($data['diagnosis'] ?? null),
-                'vitals' => $this->sanitizeVitals($data['vitals'] ?? null, $branchId),
+                'vitals' => $this->sanitizeVitals($data['vitals'] ?? null, $branchId, $doctorId ? (string) $doctorId : null),
                 'private_notes' => $data['private_notes'] ?? null,
                 'started_at' => now(),
             ]);
@@ -146,7 +146,7 @@ class EncounterService
                 'chief_complaint' => $data['chief_complaint'] ?? $encounter->chief_complaint,
                 'clinical_examination' => $data['clinical_examination'] ?? $encounter->clinical_examination,
                 'diagnosis' => $this->normalizeDiagnosis($data['diagnosis'] ?? $encounter->diagnosis),
-                'vitals' => $this->sanitizeVitals($data['vitals'] ?? $encounter->vitals, $encounter->branch_id),
+                'vitals' => $this->sanitizeVitals($data['vitals'] ?? $encounter->vitals, $encounter->branch_id, $encounter->doctor_id ? (string) $encounter->doctor_id : null),
                 'private_notes' => $data['private_notes'] ?? $encounter->private_notes,
                 'status' => EncounterStatus::COMPLETED->value,
                 'completed_at' => now(),
@@ -425,46 +425,65 @@ class EncounterService
     /**
      * Safely sanitize and filter dynamic vitals against branch vitals_config.
      */
-    protected function sanitizeVitals(?array $vitals, ?string $branchId = null): ?array
+    protected function sanitizeVitals(?array $vitals, ?string $branchId = null, ?string $doctorId = null): ?array
     {
         if ($vitals === null) {
             return null;
         }
 
+        // Standard vital keys and ophthalmology refraction data are always preserved
+        $alwaysAllowed = [
+            'blood_pressure', 'bloodPressure', 'bp_systolic', 'bp_diastolic',
+            'heart_rate', 'heartRate', 'pulse',
+            'temperature', 'temp',
+            'weight', 'wt',
+            'height', 'ht',
+            'blood_sugar', 'randomBloodSugar', 'rbs',
+            'spo2', 'oxygen',
+            'respiratory_rate', 'bmi',
+            'refraction', 'visionData', 'od', 'os', 'pd',
+        ];
+
+        $allowedKeys = $alwaysAllowed;
+
         if ($branchId) {
-            $setting = ClinicSetting::where('branch_id', $branchId)->first();
-            if ($setting && ! empty($setting->vitals_config) && is_array($setting->vitals_config)) {
-                $allowedKeys = [];
-                foreach ($setting->vitals_config as $cfg) {
-                    if (is_array($cfg) && isset($cfg['key'])) {
-                        // If explicitly deactivated, skip
-                        if ((isset($cfg['is_active']) && ! $cfg['is_active']) || (isset($cfg['enabled']) && ! $cfg['enabled'])) {
-                            continue;
-                        }
-                        $allowedKeys[] = (string) $cfg['key'];
-                    }
-                }
+            $settingQuery = ClinicSetting::where('branch_id', $branchId);
+            $setting = $doctorId
+                ? ((clone $settingQuery)->where('doctor_id', $doctorId)->first() ?: (clone $settingQuery)->whereNull('doctor_id')->first())
+                : (clone $settingQuery)->whereNull('doctor_id')->first();
 
-                if (! empty($allowedKeys)) {
-                    $filtered = [];
-                    foreach ($vitals as $key => $val) {
-                        if (in_array((string) $key, $allowedKeys, true)) {
-                            $filtered[$key] = is_scalar($val) || is_null($val) ? $val : (is_array($val) ? $val : (string) $val);
+            if ($setting && ! empty($setting->vitals_config)) {
+                $rawConfig = $setting->vitals_config;
+                $cfgList = is_array($rawConfig) ? ($rawConfig['fields'] ?? $rawConfig) : [];
+
+                if (is_array($cfgList)) {
+                    foreach ($cfgList as $cfg) {
+                        if (is_array($cfg) && isset($cfg['key'])) {
+                            $cfgKey = (string) $cfg['key'];
+                            if ((isset($cfg['is_enabled']) && ! $cfg['is_enabled']) || (isset($cfg['is_active']) && ! $cfg['is_active'])) {
+                                $allowedKeys = array_filter($allowedKeys, fn ($k) => strtolower($k) !== strtolower($cfgKey));
+
+                                continue;
+                            }
+                            $allowedKeys[] = $cfgKey;
                         }
                     }
-
-                    return $filtered;
                 }
             }
         }
+
+        $allowedLower = array_map('strtolower', $allowedKeys);
 
         $safe = [];
         foreach ($vitals as $key => $val) {
-            if (is_string($key) && (is_scalar($val) || is_null($val) || is_array($val))) {
-                $safe[$key] = $val;
+            if (is_string($key)) {
+                $lowerKey = strtolower($key);
+                if (in_array($lowerKey, $allowedLower, true)) {
+                    $safe[$key] = is_scalar($val) || is_null($val) || is_array($val) ? $val : (string) $val;
+                }
             }
         }
 
-        return $safe;
+        return ! empty($safe) ? $safe : null;
     }
 }

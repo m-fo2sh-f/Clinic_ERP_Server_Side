@@ -12,6 +12,7 @@ class ClinicSetting extends Model
 
     protected $fillable = [
         'branch_id',
+        'doctor_id',
         'queue_strategy',
         'avg_appointment_duration',
         'vitals_config',
@@ -30,5 +31,10 @@ class ClinicSetting extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'doctor_id');
     }
 }

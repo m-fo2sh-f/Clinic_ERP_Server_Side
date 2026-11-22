@@ -62,17 +62,15 @@ class ConsultationPrescriptionTest extends TestCase
         Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'doctor', 'guard_name' => 'sanctum']);
 
-        $this->branchA = Branch::factory()->create(['tenant_id' => $this->tenantA->id]);
+        $this->branchA = Branch::factory()->create();
 
         $this->doctorA = User::factory()->create([
-            'tenant_id' => $this->tenantA->id,
             'email' => 'doctor@'.$tenantAId.'.test',
         ]);
         $this->doctorA->assignRole('doctor');
         $this->doctorA->branches()->attach($this->branchA->id);
 
         $this->patientA = Patient::create([
-            'tenant_id' => $this->tenantA->id,
             'name' => 'مريض العيادة أ',
             'phone' => '01011112222',
             'medical_number' => 'MRN-50001',
@@ -81,7 +79,6 @@ class ConsultationPrescriptionTest extends TestCase
         ]);
 
         $this->appointmentA = Appointment::create([
-            'tenant_id' => $this->tenantA->id,
             'branch_id' => $this->branchA->id,
             'patient_id' => $this->patientA->id,
             'doctor_id' => $this->doctorA->id,
@@ -91,7 +88,6 @@ class ConsultationPrescriptionTest extends TestCase
         ]);
 
         $this->liveQueueA = LiveQueue::create([
-            'tenant_id' => $this->tenantA->id,
             'branch_id' => $this->branchA->id,
             'appointment_id' => $this->appointmentA->id,
             'patient_id' => $this->patientA->id,
@@ -171,7 +167,6 @@ class ConsultationPrescriptionTest extends TestCase
         $this->assertCount(2, $items);
 
         // First Item assertions
-        $this->assertEquals($this->tenantA->id, $items[0]->tenant_id);
         $this->assertEquals($prescription->id, $items[0]->prescription_id);
         $this->assertEquals($this->drugPanadol->id, $items[0]->drug_id);
         $this->assertEquals('Panadol Extra', $items[0]->drug_name);
@@ -179,7 +174,6 @@ class ConsultationPrescriptionTest extends TestCase
         $this->assertEquals(1, $items[0]->sort_order);
 
         // Second Item assertions (custom drug without drug_id)
-        $this->assertEquals($this->tenantA->id, $items[1]->tenant_id);
         $this->assertEquals($prescription->id, $items[1]->prescription_id);
         $this->assertNull($items[1]->drug_id);
         $this->assertEquals('فيتامين سي فوار', $items[1]->drug_name);

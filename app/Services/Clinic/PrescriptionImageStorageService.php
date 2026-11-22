@@ -14,7 +14,7 @@ class PrescriptionImageStorageService
      * Store a valid uploaded prescription template image safely with a random UUID.
      * Uses MIME-derived extension to prevent extension spoofing.
      */
-    public function storeImage(UploadedFile $file, string $tenantId): string
+    public function storeImage(UploadedFile $file, string $tenantId, ?string $branchId = null, ?string $subFolder = null): string
     {
         $safeTenantId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $tenantId);
         if (empty($safeTenantId)) {
@@ -32,6 +32,16 @@ class PrescriptionImageStorageService
 
         $filename = Str::uuid()->toString().'.'.$extension;
         $relativeDirectory = "tenants/{$safeTenantId}/templates";
+
+        if ($branchId) {
+            $safeBranchId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $branchId);
+            $relativeDirectory .= "/branch_{$safeBranchId}";
+        }
+
+        if ($subFolder) {
+            $safeSubFolder = preg_replace('/[^a-zA-Z0-9_\-]/', '', $subFolder);
+            $relativeDirectory .= "/{$safeSubFolder}";
+        }
 
         return Storage::disk($this->disk)->putFileAs($relativeDirectory, $file, $filename);
     }
@@ -107,10 +117,18 @@ class PrescriptionImageStorageService
             abort(404, 'Template image not found.');
         }
 
-        $sharedPath = "tenants/{$safeTenantId}/templates/{$cleanFilename}";
+        $tenantDir = "tenants/{$safeTenantId}/templates";
 
-        if (Storage::disk($this->disk)->exists($sharedPath)) {
-            return Storage::disk($this->disk)->path($sharedPath);
+        if (Storage::disk($this->disk)->exists("{$tenantDir}/{$cleanFilename}")) {
+            return Storage::disk($this->disk)->path("{$tenantDir}/{$cleanFilename}");
+        }
+
+        // Recursively find file in tenant template subdirectories
+        $files = Storage::disk($this->disk)->allFiles($tenantDir);
+        foreach ($files as $file) {
+            if (basename($file) === $cleanFilename) {
+                return Storage::disk($this->disk)->path($file);
+            }
         }
 
         $legacyPath = 'templates/'.$cleanFilename;

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Clinic\EncounterController;
 use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
 use App\Http\Controllers\Api\V1\Clinic\PatientController;
 use App\Http\Controllers\Api\V1\Clinic\PrescriptionTemplateController;
+use App\Http\Controllers\Api\V1\Clinic\VitalsConfigController;
 use App\Http\Middleware\SetBranchContext;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +75,14 @@ Route::middleware([
                         Route::put('/', [PrescriptionTemplateController::class, 'update']);
                         Route::post('image', [PrescriptionTemplateController::class, 'uploadImage']);
                         Route::delete('image', [PrescriptionTemplateController::class, 'deleteImage']);
+                    });
+
+                // 🩺 تخصيص العلامات الحيوية والقياسات (Dynamic Vitals Configuration)
+                Route::prefix('clinic-settings/vitals-config')
+                    ->middleware('role:doctor|clinic_owner')
+                    ->group(function () {
+                        Route::get('/', [VitalsConfigController::class, 'show']);
+                        Route::put('/', [VitalsConfigController::class, 'update']);
                     });
 
                 // 💊 محرك الأدوية المصرية وقائمة الطبيب الذكية (Doctor Drugs & Central Medications)

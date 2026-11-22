@@ -34,6 +34,8 @@ class UploadPrescriptionImageRequest extends FormRequest
                 'dimensions:min_width=300,min_height=300,max_width=4500,max_height=4500',
             ],
             'doctor_override' => ['nullable', 'boolean'],
+            'doctor_id' => ['nullable', 'string'],
+            'image_type' => ['nullable', 'string', 'in:image,guide_image'],
             'branch_id' => ['nullable', 'string'],
         ];
     }

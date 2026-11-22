@@ -56,7 +56,7 @@ class PlatformTenantBranchService
             ]);
 
             ClinicSetting::firstOrCreate(
-                ['branch_id' => $branch->id],
+                ['branch_id' => $branch->id, 'doctor_id' => null],
                 ['queue_strategy' => 'hybrid']
             );
 

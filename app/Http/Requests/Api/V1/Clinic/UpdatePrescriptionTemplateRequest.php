@@ -14,6 +14,7 @@ class UpdatePrescriptionTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'layout_mode' => ['sometimes', 'string', 'in:standard_flow,freeform_canvas'],
             'mode' => ['required', 'string', 'in:letterhead,builtin,custom_image'],
             'paper_size' => ['required', 'string', 'in:A5,A4,A3'],
             'margins' => ['nullable', 'array'],
@@ -21,6 +22,7 @@ class UpdatePrescriptionTemplateRequest extends FormRequest
             'margins.bottom_cm' => ['nullable', 'numeric', 'min:0', 'max:25'],
             'margins.left_cm' => ['nullable', 'numeric', 'min:0', 'max:15'],
             'margins.right_cm' => ['nullable', 'numeric', 'min:0', 'max:15'],
+            'freeform_layout' => ['nullable', 'array'],
             'template_id' => ['nullable', 'string', 'max:100'],
             'body_layout' => ['sometimes', 'string', 'in:columns,stacked'],
             'font_size' => ['sometimes', 'string', 'in:sm,md,lg,xl'],
@@ -46,9 +48,12 @@ class UpdatePrescriptionTemplateRequest extends FormRequest
             'footer_data.doctor_phones' => ['nullable', 'string', 'max:255'],
             'footer_data.address' => ['nullable', 'string', 'max:500'],
             'doctor_override' => ['nullable', 'boolean'],
+            'doctor_id' => ['nullable', 'string'],
             'image_path' => ['nullable', 'string', 'max:500', 'not_regex:/\.\./'],
+            'guide_image_path' => ['nullable', 'string', 'max:500', 'not_regex:/\.\./'],
             'background_image' => ['nullable', 'string', 'max:500', 'not_regex:/\.\./'],
             'clear_image' => ['nullable', 'boolean'],
+            'clear_guide_image' => ['nullable', 'boolean'],
         ];
     }
 }

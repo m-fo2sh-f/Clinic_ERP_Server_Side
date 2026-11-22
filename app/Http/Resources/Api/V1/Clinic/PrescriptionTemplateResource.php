@@ -20,7 +20,11 @@ class PrescriptionTemplateResource extends JsonResource
         $imageUrl = $imagePath ? url('/api/v1/clinic-settings/prescription-template/image/'.basename($imagePath)) : null;
         $directStorageUrl = $imagePath ? asset('storage/'.ltrim($imagePath, '/')) : null;
 
+        $guideImagePath = $data['guide_image_path'] ?? null;
+        $guideImageUrl = $guideImagePath ? url('/api/v1/clinic-settings/prescription-template/image/'.basename($guideImagePath)) : null;
+
         return [
+            'layout_mode' => $data['layout_mode'] ?? 'standard_flow',
             'mode' => $data['mode'] ?? 'builtin',
             'paper_size' => $data['paper_size'] ?? 'A5',
             'template_id' => $data['template_id'] ?? 'egyptian_clinic',
@@ -33,6 +37,7 @@ class PrescriptionTemplateResource extends JsonResource
                 'left_cm' => 1.5,
                 'right_cm' => 1.5,
             ],
+            'freeform_layout' => $data['freeform_layout'] ?? null,
             'show_diagnosis' => (bool) ($data['show_diagnosis'] ?? true),
             'show_vitals' => (bool) ($data['show_vitals'] ?? true),
             'show_qr' => (bool) ($data['show_qr'] ?? true),
@@ -45,9 +50,13 @@ class PrescriptionTemplateResource extends JsonResource
             'image_url' => $imageUrl,
             'custom_image_url' => $imageUrl,
             'background_image' => $imageUrl,
+            'guide_image_path' => $guideImagePath,
+            'guide_image_url' => $guideImageUrl,
             'direct_storage_url' => $directStorageUrl,
             'is_doctor_override' => (bool) ($data['is_doctor_override'] ?? false),
+            'doctor_id' => $data['doctor_id'] ?? null,
             'branch_id' => $data['branch_id'] ?? null,
+            'branch_doctors' => $data['branch_doctors'] ?? [],
         ];
     }
 }

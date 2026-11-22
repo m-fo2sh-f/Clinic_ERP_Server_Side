@@ -43,7 +43,12 @@ class Branch extends Model
 
     public function clinicSetting()
     {
-        return $this->hasOne(ClinicSetting::class);
+        return $this->hasOne(ClinicSetting::class)->whereNull('doctor_id');
+    }
+
+    public function clinicSettings()
+    {
+        return $this->hasMany(ClinicSetting::class);
     }
 
     public function encounters()

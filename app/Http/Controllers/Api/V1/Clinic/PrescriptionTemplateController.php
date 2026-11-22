@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\Clinic\UpdatePrescriptionTemplateRequest;
 use App\Http\Requests\Api\V1\Clinic\UploadPrescriptionImageRequest;
 use App\Http\Resources\Api\V1\Clinic\PrescriptionTemplateResource;
 use App\Models\Branch;
+use App\Services\Clinic\ClinicSettingsResolverService;
 use App\Services\Clinic\PrescriptionTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class PrescriptionTemplateController extends Controller
 {
     public function __construct(
-        protected PrescriptionTemplateService $templateService
+        protected PrescriptionTemplateService $templateService,
+        protected ClinicSettingsResolverService $resolverService
     ) {}
 
     /**
@@ -25,8 +27,9 @@ class PrescriptionTemplateController extends Controller
     {
         $branchId = $this->resolveBranchId($request);
         $user = $request->user();
+        $targetDoctorId = $request->query('doctor_id');
 
-        $template = $this->templateService->getTemplateForBranchAndUser($branchId, $user);
+        $template = $this->resolverService->resolvePrescriptionTemplate($branchId, $targetDoctorId, $user);
 
         return response()->json([
             'status' => 'success',
@@ -42,8 +45,9 @@ class PrescriptionTemplateController extends Controller
     {
         $branchId = $this->resolveBranchId($request);
         $user = $request->user();
+        $targetDoctorId = $request->input('doctor_id');
 
-        $template = $this->templateService->updateTemplate($branchId, $user, $request->validated());
+        $template = $this->resolverService->savePrescriptionTemplate($branchId, $targetDoctorId, $user, $request->validated());
 
         return response()->json([
             'status' => 'success',
@@ -61,10 +65,10 @@ class PrescriptionTemplateController extends Controller
         $branchId = $this->resolveBranchId($request);
         $user = $request->user();
         $file = $request->file('image') ?: $request->file('file');
+        $targetDoctorId = $request->input('doctor_id');
+        $imageField = $request->input('image_type') === 'guide_image' ? 'guide_image_path' : 'image_path';
 
-        $doctorOverride = $request->has('doctor_override') ? $request->boolean('doctor_override') : null;
-
-        $template = $this->templateService->uploadTemplateImage($branchId, $user, $file, $doctorOverride);
+        $template = $this->resolverService->uploadImage($branchId, $targetDoctorId, $user, $file, $imageField);
 
         return response()->json([
             'status' => 'success',
@@ -81,9 +85,10 @@ class PrescriptionTemplateController extends Controller
     {
         $branchId = $this->resolveBranchId($request);
         $user = $request->user();
-        $doctorOverride = $request->has('doctor_override') ? $request->boolean('doctor_override') : null;
+        $targetDoctorId = $request->input('doctor_id');
+        $imageField = $request->input('image_type') === 'guide_image' ? 'guide_image_path' : 'image_path';
 
-        $template = $this->templateService->deleteTemplateImage($branchId, $user, $doctorOverride);
+        $template = $this->resolverService->deleteImage($branchId, $targetDoctorId, $user, $imageField);
 
         return response()->json([
             'status' => 'success',

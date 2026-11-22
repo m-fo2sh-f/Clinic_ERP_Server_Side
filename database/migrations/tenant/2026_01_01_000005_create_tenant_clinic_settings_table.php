@@ -11,13 +11,14 @@ return new class extends Migration
         Schema::create('clinic_settings', function (Blueprint $table) {
             $table->id();
             $table->foreignUuid('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->foreignId('doctor_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('queue_strategy')->default('hybrid');
             $table->integer('avg_appointment_duration')->default(15);
             $table->json('vitals_config')->nullable();
             $table->json('prescription_template')->nullable();
             $table->timestamps();
 
-            $table->unique('branch_id');
+            $table->unique(['branch_id', 'doctor_id']);
         });
     }
 

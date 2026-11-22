@@ -120,11 +120,11 @@ class TenantDatabaseSeeder extends Seeder
         );
 
         ClinicSetting::updateOrCreate(
-            ['branch_id' => $branch1->id],
+            ['branch_id' => $branch1->id, 'doctor_id' => null],
             ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
         ClinicSetting::updateOrCreate(
-            ['branch_id' => $branch2->id],
+            ['branch_id' => $branch2->id, 'doctor_id' => null],
             ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 15, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
 
@@ -205,11 +205,11 @@ class TenantDatabaseSeeder extends Seeder
         );
 
         ClinicSetting::updateOrCreate(
-            ['branch_id' => $eastWing->id],
+            ['branch_id' => $eastWing->id, 'doctor_id' => null],
             ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
         ClinicSetting::updateOrCreate(
-            ['branch_id' => $westWing->id],
+            ['branch_id' => $westWing->id, 'doctor_id' => null],
             ['queue_strategy' => 'hybrid', 'avg_appointment_duration' => 20, 'prescription_template' => $this->defaultPrescriptionTemplate()]
         );
 
@@ -304,7 +304,7 @@ class TenantDatabaseSeeder extends Seeder
         ];
 
         ClinicSetting::updateOrCreate(
-            ['branch_id' => $mainBranch->id],
+            ['branch_id' => $mainBranch->id, 'doctor_id' => null],
             [
                 'queue_strategy' => 'hybrid',
                 'avg_appointment_duration' => 15,
@@ -370,7 +370,7 @@ class TenantDatabaseSeeder extends Seeder
         );
 
         ClinicSetting::updateOrCreate(
-            ['branch_id' => $mainBranch->id],
+            ['branch_id' => $mainBranch->id, 'doctor_id' => null],
             [
                 'queue_strategy' => 'scheduled',
                 'avg_appointment_duration' => 20,

@@ -259,7 +259,7 @@ class PrescriptionTemplateTest extends TestCase
 
         $pngPath = $pngResponse->json('data.image_path');
         $this->assertNotNull($pngPath);
-        $expectedPngPattern = "#^tenants/{$this->tenant->id}/templates/[a-f0-9\-]+\.png$#";
+        $expectedPngPattern = "#^tenants/{$this->tenant->id}/templates/.*[a-f0-9\-]+\.png$#";
         $this->assertMatchesRegularExpression($expectedPngPattern, $pngPath);
         $this->assertTrue(Storage::disk('public_shared')->exists($pngPath));
 
@@ -277,7 +277,7 @@ class PrescriptionTemplateTest extends TestCase
 
         $jpgPath = $jpgResponse->json('data.image_path');
         $this->assertNotNull($jpgPath);
-        $expectedJpgPattern = "#^tenants/{$this->tenant->id}/templates/[a-f0-9\-]+\.jpg$#";
+        $expectedJpgPattern = "#^tenants/{$this->tenant->id}/templates/.*[a-f0-9\-]+\.jpg$#";
         $this->assertMatchesRegularExpression($expectedJpgPattern, $jpgPath);
         $this->assertTrue(Storage::disk('public_shared')->exists($jpgPath));
 
@@ -295,7 +295,7 @@ class PrescriptionTemplateTest extends TestCase
 
         $webpPath = $webpResponse->json('data.image_path');
         $this->assertNotNull($webpPath);
-        $expectedWebpPattern = "#^tenants/{$this->tenant->id}/templates/[a-f0-9\-]+\.webp$#";
+        $expectedWebpPattern = "#^tenants/{$this->tenant->id}/templates/.*[a-f0-9\-]+\.webp$#";
         $this->assertMatchesRegularExpression($expectedWebpPattern, $webpPath);
         $this->assertTrue(Storage::disk('public_shared')->exists($webpPath));
     }
