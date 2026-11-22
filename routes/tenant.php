@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\Auth\AuthController;
-use App\Http\Controllers\Api\V1\Clinic\AppointmentController;
-use App\Http\Controllers\Api\V1\Clinic\BillingController;
-use App\Http\Controllers\Api\V1\Clinic\BranchController;
-use App\Http\Controllers\Api\V1\Clinic\DoctorDrugController;
-use App\Http\Controllers\Api\V1\Clinic\EncounterController;
-use App\Http\Controllers\Api\V1\Clinic\LiveQueueController;
-use App\Http\Controllers\Api\V1\Clinic\PatientController;
-use App\Http\Controllers\Api\V1\Clinic\PrescriptionTemplateController;
-use App\Http\Controllers\Api\V1\Clinic\VitalsConfigController;
+use App\Http\Controllers\Api\V1\Clinic\Appointment\AppointmentController;
+use App\Http\Controllers\Api\V1\Clinic\Billing\BillingController;
+use App\Http\Controllers\Api\V1\Clinic\Branch\BranchController;
+use App\Http\Controllers\Api\V1\Clinic\Encounter\EncounterController;
+use App\Http\Controllers\Api\V1\Clinic\Medications\DoctorDrugController;
+use App\Http\Controllers\Api\V1\Clinic\Patient\PatientController;
+use App\Http\Controllers\Api\V1\Clinic\Queue\LiveQueueController;
+use App\Http\Controllers\Api\V1\Clinic\Settings\PrescriptionTemplateController;
+use App\Http\Controllers\Api\V1\Clinic\Settings\VitalsConfigController;
 use App\Http\Middleware\SetBranchContext;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;

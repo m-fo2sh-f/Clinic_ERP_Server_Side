@@ -6,7 +6,7 @@ use App\Models\Branch;
 use App\Models\ClinicSetting;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\Clinic\PrescriptionTemplateService;
+use App\Services\Clinic\Settings\PrescriptionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;

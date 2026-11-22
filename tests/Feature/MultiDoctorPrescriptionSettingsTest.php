@@ -9,7 +9,7 @@ use App\Models\ClinicSetting;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\Clinic\EncounterService;
+use App\Services\Clinic\Encounter\EncounterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;

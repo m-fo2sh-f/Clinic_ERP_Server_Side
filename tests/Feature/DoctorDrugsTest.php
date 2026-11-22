@@ -16,7 +16,7 @@ use App\Models\Patient;
 use App\Models\PrescriptionItem;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\Clinic\EncounterService;
+use App\Services\Clinic\Encounter\EncounterService;
 use App\Services\Clinic\Medications\PrescriptionAutoLearnService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;

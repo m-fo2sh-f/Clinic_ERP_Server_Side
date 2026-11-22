@@ -7,7 +7,7 @@ use App\Http\Requests\Api\V1\Appointment\UpdateAppointmentRequest;
 use App\Models\Branch;
 use App\Models\Patient;
 use App\Models\Tenant;
-use App\Services\Clinic\AppointmentService;
+use App\Services\Clinic\Appointment\AppointmentService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
