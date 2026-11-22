@@ -18,16 +18,32 @@ class PrescriptionImageStorageService
     {
         $safeTenantId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $tenantId);
         if (empty($safeTenantId)) {
-            throw new \InvalidArgumentException('سياق المستأجر غير صالح لتخزين الصورة.');
+            throw new \InvalidArgumentException('Invalid tenant context for template image storage.');
         }
 
-        // Derive trusted extension strictly from verified MIME type
-        $mime = $file->getMimeType();
-        $extension = match ($mime) {
+        // 1. Strict file size enforcement (2MB maximum)
+        if ($file->getSize() > 2 * 1024 * 1024) {
+            throw new \InvalidArgumentException('File size exceeds the 2MB limit.');
+        }
+
+        // 2. Strict Magic Bytes validation using getimagesize (blocks SVG, HTML, polyglots, and fake extensions)
+        $realPath = $file->getRealPath();
+        $imageInfo = @getimagesize($realPath);
+        if ($imageInfo === false) {
+            throw new \InvalidArgumentException('Uploaded file is not a valid physical image.');
+        }
+
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (! in_array($imageInfo['mime'], $allowedMimes, true)) {
+            throw new \InvalidArgumentException("Image format [{$imageInfo['mime']}] is not permitted. Only JPG, PNG, and WebP are allowed.");
+        }
+
+        // Derive trusted extension strictly from verified magic MIME type
+        $extension = match ($imageInfo['mime']) {
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
-            default => throw new \InvalidArgumentException("صيغة الصورة غير مدعومة [{$mime}]. يُسمح فقط بصيغ JPG و PNG و WebP."),
+            default => throw new \InvalidArgumentException('Unsupported image type.'),
         };
 
         $filename = Str::uuid()->toString().'.'.$extension;
@@ -41,6 +57,12 @@ class PrescriptionImageStorageService
         if ($subFolder) {
             $safeSubFolder = preg_replace('/[^a-zA-Z0-9_\-]/', '', $subFolder);
             $relativeDirectory .= "/{$safeSubFolder}";
+        }
+
+        // 3. Strict 1-image-per-doctor rule: purge any existing files in this specific directory
+        $existingFiles = Storage::disk($this->disk)->files($relativeDirectory);
+        foreach ($existingFiles as $existingFile) {
+            Storage::disk($this->disk)->delete($existingFile);
         }
 
         return Storage::disk($this->disk)->putFileAs($relativeDirectory, $file, $filename);

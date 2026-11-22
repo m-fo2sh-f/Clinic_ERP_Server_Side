@@ -14,9 +14,11 @@ class ClinicSettingsResolverService
     public const DEFAULT_PRESCRIPTION_TEMPLATE = [
         'layout_mode' => 'standard_flow', // 'standard_flow' | 'freeform_canvas'
         'mode' => 'builtin',              // 'builtin' | 'letterhead' | 'custom_image'
-        'paper_size' => 'A5',             // 'A5' | 'A4'
+        'paper_size' => 'A4',             // 'A4' (default standard) | 'A5'
         'template_id' => 'egyptian_clinic',
         'body_layout' => 'columns',
+        'standard_flow_layout' => 'side_by_side', // 'side_by_side' | 'stacked'
+        'vitals_direction' => 'horizontal',       // 'horizontal' | 'vertical'
         'font_size' => 'md',
         'primary_color' => '#991b1b',
         'margins' => [
@@ -27,6 +29,7 @@ class ClinicSettingsResolverService
         ],
         'show_diagnosis' => true,
         'show_vitals' => true,
+        'show_refraction' => true,
         'show_qr' => true,
         'show_rx_code' => true,
         'auto_print' => false,
@@ -158,6 +161,8 @@ class ClinicSettingsResolverService
     {
         $verifiedDoctorId = $this->resolveTargetDoctorId($user, $targetDoctorId);
         $branchDoctors = $this->getBranchDoctors($branchId);
+        $vitalsResolved = $this->resolveVitalsConfig($branchId, $targetDoctorId, $user);
+        $activeVitalsConfig = $vitalsResolved['config'] ?? self::DEFAULT_VITALS_CONFIG;
 
         // 1. Try Doctor Custom Setting
         if ($verifiedDoctorId) {
@@ -171,6 +176,7 @@ class ClinicSettingsResolverService
                 $template['doctor_id'] = $verifiedDoctorId;
                 $template['is_doctor_override'] = true;
                 $template['branch_doctors'] = $branchDoctors;
+                $template['vitals_config'] = $activeVitalsConfig;
 
                 return $template;
             }
@@ -187,6 +193,7 @@ class ClinicSettingsResolverService
             $template['doctor_id'] = $verifiedDoctorId;
             $template['is_doctor_override'] = false;
             $template['branch_doctors'] = $branchDoctors;
+            $template['vitals_config'] = $activeVitalsConfig;
 
             return $template;
         }
@@ -197,6 +204,7 @@ class ClinicSettingsResolverService
         $template['doctor_id'] = $verifiedDoctorId;
         $template['is_doctor_override'] = false;
         $template['branch_doctors'] = $branchDoctors;
+        $template['vitals_config'] = $activeVitalsConfig;
 
         return $template;
     }
