@@ -30,6 +30,7 @@ class ClinicSettingsResolverService
         'show_diagnosis' => true,
         'show_vitals' => true,
         'show_refraction' => true,
+        'show_borders' => true,
         'show_qr' => true,
         'show_rx_code' => true,
         'auto_print' => false,
@@ -60,6 +61,9 @@ class ClinicSettingsResolverService
 
     public const DEFAULT_VITALS_CONFIG = [
         'refraction_card_enabled' => false,
+        'enable_refraction' => false,
+        'enabled_keys' => ['blood_pressure', 'heart_rate', 'temperature', 'blood_glucose', 'weight', 'height', 'oxygen_saturation'],
+        'custom_vitals' => [],
         'fields' => [
             [
                 'key' => 'blood_pressure',
@@ -129,6 +133,16 @@ class ClinicSettingsResolverService
                 'type' => 'number',
                 'is_enabled' => true,
                 'show_in_prescription' => true,
+                'is_custom' => false,
+            ],
+            [
+                'key' => 'respiratory_rate',
+                'label' => 'معدل التنفس (RR)',
+                'label_en' => 'Respiratory Rate',
+                'unit' => 'bpm',
+                'type' => 'number',
+                'is_enabled' => false,
+                'show_in_prescription' => false,
                 'is_custom' => false,
             ],
         ],
@@ -229,7 +243,7 @@ class ClinicSettingsResolverService
                     'doctor_id' => $verifiedDoctorId,
                     'is_doctor_override' => true,
                     'branch_doctors' => $branchDoctors,
-                    'config' => $doctorSetting->vitals_config,
+                    'config' => $this->normalizeVitalsConfig($doctorSetting->vitals_config),
                 ];
             }
         }
@@ -245,7 +259,7 @@ class ClinicSettingsResolverService
                 'doctor_id' => $verifiedDoctorId,
                 'is_doctor_override' => false,
                 'branch_doctors' => $branchDoctors,
-                'config' => $branchSetting->vitals_config,
+                'config' => $this->normalizeVitalsConfig($branchSetting->vitals_config),
             ];
         }
 
@@ -255,7 +269,39 @@ class ClinicSettingsResolverService
             'doctor_id' => $verifiedDoctorId,
             'is_doctor_override' => false,
             'branch_doctors' => $branchDoctors,
-            'config' => self::DEFAULT_VITALS_CONFIG,
+            'config' => $this->normalizeVitalsConfig(self::DEFAULT_VITALS_CONFIG),
+        ];
+    }
+
+    /**
+     * Normalize vitals configuration array to ensure enabled_keys, refraction flags, and custom vitals are always present.
+     */
+    public function normalizeVitalsConfig(array $config): array
+    {
+        $fields = $config['fields'] ?? [];
+        $enabledKeys = $config['enabled_keys'] ?? [];
+        $customVitals = $config['custom_vitals'] ?? [];
+
+        if (empty($enabledKeys) && ! empty($fields)) {
+            foreach ($fields as $f) {
+                if (($f['is_enabled'] ?? true) && isset($f['key'])) {
+                    $enabledKeys[] = (string) $f['key'];
+                }
+            }
+        }
+
+        if (empty($enabledKeys)) {
+            $enabledKeys = ['blood_pressure', 'heart_rate', 'temperature', 'blood_glucose', 'weight', 'height', 'oxygen_saturation'];
+        }
+
+        $enableRefraction = (bool) ($config['enable_refraction'] ?? $config['refraction_card_enabled'] ?? false);
+
+        return [
+            'enabled_keys' => array_values(array_unique($enabledKeys)),
+            'enable_refraction' => $enableRefraction,
+            'refraction_card_enabled' => $enableRefraction,
+            'custom_vitals' => $customVitals,
+            'fields' => $fields ?: self::DEFAULT_VITALS_CONFIG['fields'],
         ];
     }
 

@@ -54,11 +54,35 @@ class VitalsConfigController extends Controller
             $customVitals = $validated['custom_vitals'] ?? [];
             $defaultFields = ClinicSettingsResolverService::DEFAULT_VITALS_CONFIG['fields'];
 
+            $isKeyEnabled = function (string $key) use ($enabledKeys): bool {
+                if (in_array($key, $enabledKeys, true)) {
+                    return true;
+                }
+                if ($key === 'blood_sugar' && in_array('blood_glucose', $enabledKeys, true)) {
+                    return true;
+                }
+                if ($key === 'blood_glucose' && in_array('blood_sugar', $enabledKeys, true)) {
+                    return true;
+                }
+                if ($key === 'spo2' && in_array('oxygen_saturation', $enabledKeys, true)) {
+                    return true;
+                }
+                if ($key === 'oxygen_saturation' && in_array('spo2', $enabledKeys, true)) {
+                    return true;
+                }
+                if ($key === 'respiratory_rate' && in_array('rr', $enabledKeys, true)) {
+                    return true;
+                }
+
+                return false;
+            };
+
             $fields = [];
             foreach ($defaultFields as $def) {
+                $enabled = $isKeyEnabled($def['key']);
                 $fields[] = array_merge($def, [
-                    'is_enabled' => in_array($def['key'], $enabledKeys, true),
-                    'show_in_prescription' => in_array($def['key'], $enabledKeys, true),
+                    'is_enabled' => $enabled,
+                    'show_in_prescription' => $enabled,
                 ]);
             }
             foreach ($customVitals as $cv) {

@@ -32,6 +32,7 @@ class UpdatePrescriptionTemplateRequest extends FormRequest
             'show_diagnosis' => ['sometimes', 'boolean'],
             'show_vitals' => ['sometimes', 'boolean'],
             'show_refraction' => ['sometimes', 'boolean'],
+            'show_borders' => ['sometimes', 'boolean'],
             'show_qr' => ['sometimes', 'boolean'],
             'show_rx_code' => ['sometimes', 'boolean'],
             'auto_print' => ['sometimes', 'boolean'],
